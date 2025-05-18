@@ -1,142 +1,240 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import ChatMessage from './lib/components/ChatMessage.svelte';
-  import ChatInput from './lib/components/ChatInput.svelte';
+  import { onMount, onDestroy } from 'svelte';
   import Header from './lib/components/Header.svelte';
+  import GroupChatMessage from './lib/components/GroupChatMessage.svelte';
+  import GroupChatInput from './lib/components/GroupChatInput.svelte';
+  import UsersPanel from './lib/components/UsersPanel.svelte';
+  import Login from './lib/components/Login.svelte';
   import './app.css';
   import 'highlight.js/styles/github.css';
-  import type { Message } from './lib/types';
-  import { fetchChatResponse, streamChatResponse } from './lib/api';
-
-  let messages: Message[] = [];
-  let isLoading = false;
-  let useStreaming = true; // Set to true by default to use streaming
-  let abortController: AbortController | null = null;
-
-  // Add a welcome message
-  onMount(() => {
-    messages = [
-      {
-        role: 'assistant',
-        content: 'Welcome to FinanceGPT! Ask me anything about stocks, financial data, or investment strategies.'
-      }
-    ];
-  });
-
-  // Function to stop the current generation
-  function stopGeneration() {
-    if (abortController) {
-      abortController.abort();
-      abortController = null;
-      isLoading = false;
-    }
+  
+  // App state
+  let isLoggedIn = false;
+  let isConnecting = false;
+  let username = '';
+  let userId = '';
+  let activeUsers: { user_id: string, username: string }[] = [];
+  let messages: any[] = [];
+  let websocket: WebSocket | null = null;
+  let aiToggle = true;
+  
+  // Generate a random user ID for this session
+  function generateUserId() {
+    return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
   }
-
-  // Handle sending a message
-  async function handleSendMessage(content: string) {
-    if (!content.trim()) return;
+  
+  // Cleanup resources on component destroy
+  onDestroy(() => {
+    if (websocket) {
+      websocket.close();
+    }
+  });
+  
+  // Handle user login
+  function handleLogin(event: CustomEvent) {
+    const { username: newUsername } = event.detail;
+    username = newUsername;
+    userId = generateUserId();
+    isConnecting = true;
     
-    // Add user message to the list
-    const userMessage: Message = {
-      role: 'user',
-      content
+    // Connect to WebSocket
+    connectWebSocket();
+  }
+  
+  // Establish WebSocket connection
+  function connectWebSocket() {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.hostname === 'localhost' 
+      ? 'localhost:8000' 
+      : window.location.host;
+    
+    const wsUrl = `${protocol}//${host}/api/chat/${userId}`;
+    
+    websocket = new WebSocket(wsUrl);
+    
+    websocket.onopen = () => {
+      console.log('WebSocket connection established');
+      
+      // Send initial connection message with username
+      sendWebSocketMessage({
+        type: 'connect',
+        username: username
+      });
+      
+      isLoggedIn = true;
+      isConnecting = false;
     };
     
-    messages = [...messages, userMessage];
-    isLoading = true;
-    
-    try {
-      if (useStreaming) {
-        // Create a new abort controller for this request
-        abortController = new AbortController();
-        
-        // Add an empty assistant message that we'll stream content into
-        const assistantMessage: Message = {
-          role: 'assistant',
-          content: ''
-        };
-        messages = [...messages, assistantMessage];
-        
-        // Use generator to stream the response
-        streamChatResponse(
-          messages.slice(0, -1),
-          // On each chunk
-          (chunk) => {
-            assistantMessage.content += chunk;
-            messages = [...messages.slice(0, -1), { ...assistantMessage }];
-          },
-          // On done
-          () => {
-            isLoading = false;
-            abortController = null;
-          },
-          // On error
-          (error) => {
-            if (error.name === 'AbortError') {
-              console.log('Request was aborted');
-            } else {
-              console.error('Error streaming chat response:', error);
-              assistantMessage.content += '\n\n(Error: The response was interrupted)';
-              messages = [...messages.slice(0, -1), assistantMessage];
-            }
-            isLoading = false;
-            abortController = null;
-          },
-          // Pass the abort signal
-          abortController.signal
-        );
-      } else {
-        // Use non-streaming API
-        const response = await fetchChatResponse(messages);
-        
-        // Add assistant response
-        if (response && response.content) {
+    websocket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      
+      switch (data.type) {
+        case 'system':
+          // System message (user joined/left)
           messages = [...messages, {
-            role: 'assistant',
-            content: response.content
+            type: 'system',
+            content: data.content,
+            timestamp: new Date().toISOString()
           }];
-        }
-        isLoading = false;
-        abortController = null;
+          
+          // Update user list if provided
+          if (data.users) {
+            activeUsers = data.users;
+            
+            // Add AI to the users list if not already present
+            if (!activeUsers.find(u => u.user_id === 'ai')) {
+              activeUsers = [...activeUsers, { user_id: 'ai', username: 'FinanceGPT' }];
+            }
+          }
+          break;
+          
+        case 'chat':
+          // Regular chat message
+          messages = [...messages, {
+            ...data,
+            timestamp: data.timestamp || new Date().toISOString()
+          }];
+          break;
+          
+        case 'ai_stream':
+          // Handle AI token streaming
+          const lastMessage = messages[messages.length - 1];
+          
+          if (lastMessage && lastMessage.user_id === 'ai' && lastMessage.type === 'ai_stream') {
+            // Append to the existing streaming message
+            lastMessage.content += data.content;
+            messages = [...messages.slice(0, -1), lastMessage];
+          } else {
+            // Create a new streaming message only if one doesn't exist yet
+            messages = [...messages, {
+              type: 'ai_stream',
+              user_id: 'ai',
+              username: 'FinanceGPT',
+              content: data.content,
+              timestamp: new Date().toISOString()
+            }];
+          }
+          
+          // Once complete AI response is received, change type to 'chat'
+          // We'll handle this in the backend
+          break;
+          
+        case 'ai_complete':
+          // Handle the completion of AI streaming
+          const streamedMessage = messages.find(msg => msg.user_id === 'ai' && msg.type === 'ai_stream');
+          if (streamedMessage) {
+            // Convert the streamed message to a regular chat message
+            streamedMessage.type = 'chat';
+            // Force a UI update
+            messages = [...messages];
+          }
+          break;
+          
+        case 'typing':
+          // Handle typing indicators (could implement in future)
+          break;
+          
+        case 'error':
+          console.error('WebSocket error:', data.content);
+          break;
       }
-    } catch (error) {
-      console.error('Error fetching chat response:', error);
-      messages = [...messages, {
-        role: 'assistant',
-        content: 'Sorry, there was an error processing your request. Please try again.'
-      }];
-      isLoading = false;
-      abortController = null;
+      
+      // Auto-scroll to bottom on new messages
+      setTimeout(() => {
+        const messagesDiv = document.querySelector('.message-list');
+        if (messagesDiv) {
+          messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+      }, 0);
+    };
+    
+    websocket.onerror = (error) => {
+      console.error('WebSocket error:', error);
+      isConnecting = false;
+    };
+    
+    websocket.onclose = () => {
+      console.log('WebSocket connection closed');
+      if (isLoggedIn) {
+        // Could implement reconnection logic here
+      }
+    };
+  }
+  
+  // Send a message through the WebSocket
+  function sendWebSocketMessage(message: any) {
+    if (websocket && websocket.readyState === WebSocket.OPEN) {
+      websocket.send(JSON.stringify(message));
+    } else {
+      console.error('WebSocket is not connected');
     }
+  }
+  
+  // Handle sending a message
+  function handleSendMessage(content: string, aiToggleState: boolean) {
+    if (!content.trim() || !websocket) return;
+    
+    console.log('Sending message with AI toggle:', aiToggleState);
+    
+    sendWebSocketMessage({
+      type: 'chat',
+      content,
+      ai_toggle: aiToggleState,
+      timestamp: new Date().toISOString()
+    });
+  }
+  
+  // Handle typing event
+  function handleTyping() {
+    sendWebSocketMessage({
+      type: 'typing'
+    });
   }
 </script>
 
 <main>
-  <div class="chat-container">
-    <Header />
-    
-    <div class="message-list">
-      {#each messages as message}
-        <ChatMessage {message} />
-      {/each}
+  {#if !isLoggedIn}
+    <Login 
+      isLoading={isConnecting} 
+      on:login={handleLogin} 
+    />
+  {:else}
+    <div class="chat-container">
+      <Header />
       
-      {#if isLoading}
-        <div class="loading">
-          <div class="loading-dots">
-            <span></span>
-            <span></span>
-            <span></span>
+      <div class="chat-content">
+        <div class="message-panel">
+          <div class="message-list">
+            {#each messages as message (message.timestamp + (message.user_id || ''))}
+              {#if message.type === 'system'}
+                <div class="system-message">
+                  {message.content}
+                </div>
+              {:else if message.type === 'chat' || message.type === 'ai_stream'}
+                <GroupChatMessage 
+                  {message}
+                  currentUserId={userId}
+                  isAiMessage={message.user_id === 'ai'}
+                />
+              {/if}
+            {/each}
           </div>
-          <button class="stop-button" on:click={stopGeneration}>
-            <span class="stop-icon"></span>
-            Stop generating
-          </button>
+          
+          <GroupChatInput 
+            onSendMessage={handleSendMessage}
+            isLoading={false}
+            bind:aiToggle={aiToggle}
+            on:typing={handleTyping}
+          />
         </div>
-      {/if}
+        
+        <UsersPanel 
+          users={activeUsers}
+          currentUserId={userId}
+        />
+      </div>
     </div>
-    
-    <ChatInput onSendMessage={handleSendMessage} />
-  </div>
+  {/if}
 </main>
 
 <style>
@@ -144,17 +242,31 @@
     height: 100vh;
     display: flex;
     flex-direction: column;
+    background-color: #f5f7fa;
   }
   
   .chat-container {
     height: 100%;
     display: flex;
     flex-direction: column;
-    max-width: 1000px;
     margin: 0 auto;
     width: 100%;
+    max-width: 1600px;
     background-color: #fff;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  }
+  
+  .chat-content {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+  
+  .message-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
   }
   
   .message-list {
@@ -163,71 +275,31 @@
     padding: 1rem;
     display: flex;
     flex-direction: column;
-    gap: 1rem;
-  }
-  
-  .loading {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 1rem;
     gap: 0.5rem;
   }
   
-  .loading-dots {
-    display: flex;
-    align-items: center;
-  }
-  
-  .loading-dots span {
-    width: 8px;
-    height: 8px;
-    margin: 0 4px;
-    background-color: #666;
-    border-radius: 50%;
-    animation: bounce 1.4s infinite ease-in-out both;
-  }
-  
-  .loading-dots span:nth-child(1) {
-    animation-delay: -0.32s;
-  }
-  
-  .loading-dots span:nth-child(2) {
-    animation-delay: -0.16s;
-  }
-  
-  .stop-button {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+  .system-message {
     padding: 0.5rem 1rem;
-    background-color: #f2f2f2;
-    border: none;
+    background-color: #f5f5f5;
     border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.875rem;
-    color: #333;
-    transition: background-color 0.2s;
+    font-size: 0.85rem;
+    color: #666;
+    text-align: center;
+    margin: 0.5rem 0;
+    max-width: 80%;
+    align-self: center;
   }
   
-  .stop-button:hover {
-    background-color: #e0e0e0;
-  }
-  
-  .stop-icon {
-    display: block;
-    width: 12px;
-    height: 12px;
-    background-color: #cc0000;
-    border-radius: 2px;
-  }
-  
-  @keyframes bounce {
-    0%, 80%, 100% {
-      transform: scale(0);
+  @media (max-width: 768px) {
+    .chat-content {
+      flex-direction: column;
     }
-    40% {
-      transform: scale(1);
+    
+    .users-panel {
+      width: 100%;
+      height: 200px;
+      border-left: none;
+      border-top: 1px solid #eee;
     }
   }
 </style>

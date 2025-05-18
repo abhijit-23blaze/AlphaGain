@@ -48,7 +48,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(chat.router, prefix="/api")
-app.include_router(websocket.router)
+app.include_router(websocket.router, prefix="/api")
 
 @app.get("/")
 async def root():
