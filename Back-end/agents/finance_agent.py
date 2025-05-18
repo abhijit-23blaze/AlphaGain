@@ -10,8 +10,6 @@ from dotenv import load_dotenv
 # Import directly from Google Generative AI instead of LangChain
 import google.generativeai as genai
 from langchain.tools import StructuredTool
-from langchain.memory import ConversationBufferMemory
-from langchain.chains import ConversationChain
 
 # Use simple classes for messages instead of importing from langchain
 class Message:
@@ -52,8 +50,8 @@ if not api_key:
 # Configure the Google Genai API
 genai.configure(api_key=api_key)
 
-# Initialize conversation memory
-conversation_memory = ConversationBufferMemory()
+# Maintains a session memory of conversations - keyed by client IP address
+conversation_sessions = {}
 
 # Define helpers for polygon.io API calls
 POLYGON_API_KEY = os.getenv("POLYGON_API_KEY")
@@ -117,7 +115,9 @@ When a user asks a question, follow these steps:
 
 Remember:
 - Today's date is {date.today().strftime('%Y-%m-%d')}.
-- Refer to previous parts of the conversation when appropriate to show continuity.
+- Pay attention to the conversation history and remember details the user has shared (like their name).
+- If the user refers to something mentioned earlier in the conversation, use that context in your response.
+- Maintain a consistent, helpful tone throughout the conversation.
 - Avoid simply regurgitating the raw data from the tools. Instead, provide a thoughtful interpretation and summary.
 - If the query cannot be satisfactorily answered using the available tools, kindly inform the user and suggest alternative resources or information they may need.
 
@@ -146,48 +146,54 @@ tools = [
     )
 ]
 
-# Maintains a session memory of conversations
-conversation_sessions = {}
-
 # Create a streaming implementation
 async def run_agent(messages):
     """
     Run the agent with Google Generative AI with streaming and conversation memory.
     """
-    # Extract user ID (using the last message's ID for simplicity, but can be adapted to use an actual user ID)
-    user_id = id(messages)
+    # Create a unique session key based on the first message to identify the conversation
+    # This is a simple approach - in production you might use user authentication
+    session_key = str(hash(str(messages[0]))) if messages else "default"
     
-    # Get or create session memory for this user
-    if user_id not in conversation_sessions:
-        conversation_sessions[user_id] = []
+    # Initialize or get conversation history for this session
+    if session_key not in conversation_sessions:
+        conversation_sessions[session_key] = []
     
-    # Extract the last message content as input (the current question)
-    last_message = messages[-1]
-    input_text = last_message.content if hasattr(last_message, 'content') else str(last_message)
+    # Extract all previous messages for context
+    all_messages = []
+    for msg in messages:
+        # Extract role and content, with proper fallbacks
+        if hasattr(msg, 'role'):
+            role = msg.role
+        else:
+            role = "user" if isinstance(msg, HumanMessage) else "assistant"
+        
+        content = msg.content if hasattr(msg, 'content') else str(msg)
+        
+        all_messages.append({"role": role, "content": content})
     
-    # Build conversation history
-    conversation_history = ""
-    if len(messages) > 1:
-        # Start from 1 to skip any system message that might be at index 0
-        for i in range(len(messages) - 1):
-            msg = messages[i]
-            if hasattr(msg, 'role') and hasattr(msg, 'content'):
-                role = "User" if msg.role == "user" else "Assistant"
-                conversation_history += f"{role}: {msg.content}\n\n"
+    # Update conversation history with all messages from this session
+    # We'll replace the entire history to ensure it's in sync
+    conversation_sessions[session_key] = all_messages
     
-    # Create a prompt with conversation history
+    # Extract the last message as the current query
+    last_message = all_messages[-1]["content"] if all_messages else ""
+    
+    # Format the conversation for the model
+    formatted_conversation = ""
+    for msg in conversation_sessions[session_key][:-1]:  # All messages except the last one
+        role_label = "User" if msg["role"] == "user" else "Assistant"
+        formatted_conversation += f"{role_label}: {msg['content']}\n\n"
+    
+    # Create the prompt with the conversation history and current question
     full_prompt = f"{system_prompt}\n\n"
     
-    if conversation_history:
-        full_prompt += f"Previous conversation:\n{conversation_history}\n\n"
+    if formatted_conversation:
+        full_prompt += f"Previous conversation:\n{formatted_conversation}\n"
     
-    full_prompt += f"User: {input_text}\nAssistant: "
+    full_prompt += f"User: {last_message}\nAssistant:"
     
-    # Store this interaction in the session memory
-    conversation_sessions[user_id].append({
-        "role": "user",
-        "content": input_text
-    })
+    logger.info(f"Session {session_key}: Processing message with conversation history of {len(conversation_sessions[session_key])} messages")
     
     # Function to yield chunks token by token
     async def generate_response():
@@ -203,15 +209,18 @@ async def run_agent(messages):
             
             full_text = response.text
             
-            # Store the assistant's response in the session memory
-            conversation_sessions[user_id].append({
+            # Add the assistant's response to the conversation history
+            conversation_sessions[session_key].append({
                 "role": "assistant",
                 "content": full_text
             })
             
             # Limit the conversation history to prevent it from growing too large
-            if len(conversation_sessions[user_id]) > 20:  # Keep last 10 exchanges (20 messages)
-                conversation_sessions[user_id] = conversation_sessions[user_id][-20:]
+            if len(conversation_sessions[session_key]) > 20:  # Keep last 10 exchanges (20 messages)
+                conversation_sessions[session_key] = conversation_sessions[session_key][-20:]
+            
+            # Log the conversation size after update
+            logger.info(f"Session {session_key}: Updated conversation history, now has {len(conversation_sessions[session_key])} messages")
             
             # Yield character by character for a token-by-token feel
             for char in full_text:
