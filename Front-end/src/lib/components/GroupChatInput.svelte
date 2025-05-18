@@ -38,17 +38,15 @@
 
 <div class="chat-input">
   <form on:submit|preventDefault={handleSubmit}>
-    <div class="ai-toggle">
-      <label class="toggle-label">
-        <input
-          type="checkbox"
-          bind:checked={aiToggle}
-          on:change={toggleAI}
-        />
-        <span class="toggle-slider"></span>
-      </label>
-      <span class="toggle-text" class:active={aiToggle}>AI {aiToggle ? 'On' : 'Off'}</span>
-    </div>
+    <button 
+      type="button" 
+      class="ai-toggle-button" 
+      class:active={aiToggle} 
+      on:click={toggleAI}
+      title="Toggle AI responses"
+    >
+      AI {aiToggle ? 'On' : 'Off'}
+    </button>
     
     <textarea 
       bind:value={message} 
@@ -104,7 +102,7 @@
     color: #999;
   }
   
-  button {
+  button[type="submit"] {
     background-color: #0066cc;
     color: white;
     border: none;
@@ -118,79 +116,39 @@
     transition: background-color 0.2s;
   }
   
-  button:hover {
+  button[type="submit"]:hover {
     background-color: #0055aa;
   }
   
-  button:disabled {
+  button[type="submit"]:disabled {
     background-color: #ccc;
     cursor: not-allowed;
   }
   
-  button svg {
+  button[type="submit"] svg {
     width: 18px;
     height: 18px;
   }
   
-  .ai-toggle {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    margin-right: 0.5rem;
-  }
-  
-  .toggle-label {
-    position: relative;
-    display: inline-block;
-    width: 36px;
-    height: 20px;
-  }
-  
-  .toggle-label input {
-    opacity: 0;
-    width: 0;
-    height: 0;
-  }
-  
-  .toggle-slider {
-    position: absolute;
-    cursor: pointer;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: #ccc;
-    transition: .4s;
-    border-radius: 34px;
-  }
-  
-  .toggle-slider:before {
-    position: absolute;
-    content: "";
-    height: 16px;
-    width: 16px;
-    left: 2px;
-    bottom: 2px;
-    background-color: white;
-    transition: .4s;
-    border-radius: 50%;
-  }
-  
-  input:checked + .toggle-slider {
-    background-color: #0066cc;
-  }
-  
-  input:checked + .toggle-slider:before {
-    transform: translateX(16px);
-  }
-  
-  .toggle-text {
+  .ai-toggle-button {
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
     font-size: 0.8rem;
     font-weight: 600;
-    color: #999;
+    cursor: pointer;
+    border: 1px solid #ddd;
+    background-color: #f5f5f5;
+    color: #666;
+    transition: all 0.2s;
   }
   
-  .toggle-text.active {
-    color: #0066cc;
+  .ai-toggle-button.active {
+    background-color: #0066cc;
+    color: white;
+    border-color: #0055aa;
+  }
+  
+  .ai-toggle-button:hover {
+    opacity: 0.9;
   }
 </style> 

@@ -176,6 +176,9 @@
     
     console.log('Sending message with AI toggle:', aiToggleState);
     
+    // Make sure to update the local state too
+    aiToggle = aiToggleState;
+    
     sendWebSocketMessage({
       type: 'chat',
       content,

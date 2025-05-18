@@ -96,7 +96,7 @@ async def websocket_chat(websocket: WebSocket, user_id: str):
                     content = message_data.get("content", "")
                     ai_toggle = message_data.get("ai_toggle", False)
                     
-                    logger.info(f"Received message from {username} with AI toggle: {ai_toggle}")
+                    logger.info(f"Received message from {username} with AI toggle: {ai_toggle}, raw data: {message_data}")
                     
                     if not content.strip():
                         continue
