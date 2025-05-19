@@ -86,8 +86,8 @@
   }
 </script>
 
-<div class="news-widget card">
-  <div class="card-header">
+<div class="news-widget">
+  <div class="news-header">
     <h3>
       {#if newsSource === 'global'}
         Market News
@@ -97,7 +97,7 @@
     </h3>
   </div>
   
-  <div class="card-body">
+  <div class="news-content">
     {#if isLoading}
       <div class="loading-state">
         <div class="loading-spinner"></div>
@@ -135,24 +135,38 @@
     height: 100%;
     display: flex;
     flex-direction: column;
+    background-color: var(--card-bg);
   }
   
-  .card-body {
+  .news-header {
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+  }
+  
+  .news-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--text-light);
+  }
+  
+  .news-content {
     flex-grow: 1;
     overflow-y: auto;
+    padding: 0;
   }
   
   .loading-state, .empty-state, .error-state {
     padding: 1.5rem;
     text-align: center;
-    color: var(--gray-500);
+    color: var(--text-muted);
   }
   
   .loading-spinner {
     width: 24px;
     height: 24px;
-    border: 2px solid var(--gray-200);
-    border-top: 2px solid var(--primary-color);
+    border: 2px solid var(--primary-dark);
+    border-top: 2px solid var(--primary-light);
     border-radius: 50%;
     margin: 0 auto 1rem auto;
     animation: spin 1s linear infinite;
@@ -171,7 +185,7 @@
   
   .news-item {
     padding: 0;
-    border-bottom: 1px solid var(--gray-200);
+    border-bottom: 1px solid var(--border-color);
   }
   
   .news-item:last-child {
@@ -192,9 +206,9 @@
   
   .news-title {
     margin: 0 0 0.25rem 0;
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: var(--gray-600);
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-light);
     line-height: 1.3;
   }
   
@@ -202,13 +216,13 @@
     display: flex;
     gap: 0.5rem;
     font-size: 0.75rem;
-    color: var(--gray-400);
+    color: var(--text-muted);
     margin-bottom: 0.25rem;
   }
   
   .news-source {
     font-weight: 500;
-    color: var(--primary-color);
+    color: var(--primary-light);
   }
   
   .news-date {
@@ -217,8 +231,8 @@
   
   .news-snippet {
     margin: 0.25rem 0 0 0;
-    font-size: 0.85rem;
-    color: var(--gray-500);
+    font-size: 0.8rem;
+    color: var(--text-muted);
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;

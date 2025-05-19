@@ -126,11 +126,11 @@
     const valueRange = maxValue - minValue;
     
     // Set chart styles
-    const positiveColor = 'var(--primary-color)';
-    const negativeColor = '#ef4444';
     const startValue = chartData[0]?.value ?? 0;
     const endValue = chartData[chartData.length - 1]?.value ?? 0;
-    const chartColor = endValue >= startValue ? positiveColor : negativeColor;
+    const isPositive = endValue >= startValue;
+    
+    const chartColor = isPositive ? '#948979' : '#bc6c25';
     
     ctx.strokeStyle = chartColor;
     ctx.lineWidth = 2;
@@ -210,7 +210,7 @@
         const container = canvas.parentElement;
         if (container) {
           canvas.width = container.clientWidth;
-          canvas.height = Math.max(container.clientHeight, 200);
+          canvas.height = Math.max(container.clientHeight - 40, 200);
           
           if (chartData) {
             renderChart();
@@ -230,8 +230,8 @@
   });
 </script>
 
-<div class="stock-chart-widget card">
-  <div class="card-header">
+<div class="stock-chart-widget">
+  <div class="chart-header">
     <div class="symbol-info">
       <h3>{symbol}</h3>
       {#if chartData && chartData.length > 0}
@@ -255,7 +255,7 @@
     <div class="time-range-selector">
       {#each timeRanges as range}
         <button 
-          class="time-range-button {timeRange === range.id ? 'active' : ''}"
+          class="tab-button {timeRange === range.id ? 'active' : ''}"
           on:click={() => handleTimeRangeChange(range.id)}
         >
           {range.label}
@@ -264,7 +264,7 @@
     </div>
   </div>
   
-  <div class="chart-container card-body">
+  <div class="chart-container">
     {#if isLoading}
       <div class="loading-state">
         <div class="loading-spinner"></div>
@@ -285,12 +285,15 @@
     display: flex;
     flex-direction: column;
     height: 100%;
+    background-color: var(--card-bg);
   }
   
-  .card-header {
+  .chart-header {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
   }
   
   .symbol-info {
@@ -301,30 +304,31 @@
   
   .symbol-info h3 {
     margin: 0;
-    font-size: 1.1rem;
-    color: var(--gray-600);
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--text-light);
   }
   
   .current-price {
-    font-weight: 600;
-    font-size: 1rem;
-    color: var(--gray-500);
+    font-weight: 500;
+    font-size: 0.9rem;
+    color: var(--text-light);
   }
   
   .price-change {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     padding: 0.1rem 0.3rem;
     border-radius: 4px;
   }
   
   .price-change.positive {
-    background-color: var(--primary-light);
-    color: var(--primary-color);
+    background-color: rgba(148, 137, 121, 0.25);
+    color: #DFD0B8;
   }
   
   .price-change.negative {
-    background-color: rgba(239, 68, 68, 0.2);
-    color: #ef4444;
+    background-color: rgba(188, 108, 37, 0.25);
+    color: #DFD0B8;
   }
   
   .time-range-selector {
@@ -332,30 +336,11 @@
     gap: 0.25rem;
   }
   
-  .time-range-button {
-    background: none;
-    border: none;
-    font-size: 0.8rem;
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    cursor: pointer;
-    color: var(--gray-400);
-  }
-  
-  .time-range-button:hover {
-    background-color: var(--hover-bg);
-  }
-  
-  .time-range-button.active {
-    background-color: var(--primary-light);
-    color: var(--primary-color);
-    font-weight: 500;
-  }
-  
   .chart-container {
     flex-grow: 1;
     position: relative;
     min-height: 200px;
+    padding: 0.75rem;
   }
   
   #stock-chart {
@@ -375,16 +360,16 @@
     align-items: center;
     justify-content: center;
     padding: 1rem;
-    background-color: rgba(17, 24, 39, 0.8);
+    background-color: rgba(57, 62, 70, 0.85);
     z-index: 1;
-    color: var(--gray-400);
+    color: var(--text-muted);
   }
   
   .loading-spinner {
-    width: 30px;
-    height: 30px;
-    border: 3px solid var(--gray-200);
-    border-top: 3px solid var(--primary-color);
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--primary-dark);
+    border-top: 2px solid var(--primary-light);
     border-radius: 50%;
     margin-bottom: 1rem;
     animation: spin 1s linear infinite;

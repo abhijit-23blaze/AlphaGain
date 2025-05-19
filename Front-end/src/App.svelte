@@ -20,6 +20,9 @@
   let websocket: WebSocket | null = null;
   let aiToggle = true;
   
+  // Artifact state
+  let currentTab = 'chart'; // 'chart', 'news', 'users'
+  
   // Generate a random user ID for this session
   function generateUserId() {
     return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
@@ -41,6 +44,11 @@
     
     // Connect to WebSocket
     connectWebSocket();
+  }
+  
+  // Change artifact tab
+  function setTab(tab: string) {
+    currentTab = tab;
   }
   
   // Establish WebSocket connection
@@ -234,17 +242,38 @@
         </div>
 
         <div class="artifacts-panel">
-          <div class="artifact-item">
-            <StockChart />
+          <div class="tab-container">
+            <button 
+              class="tab-button {currentTab === 'chart' ? 'active' : ''}" 
+              on:click={() => setTab('chart')}
+            >
+              📈 Charts
+            </button>
+            <button 
+              class="tab-button {currentTab === 'news' ? 'active' : ''}" 
+              on:click={() => setTab('news')}
+            >
+              📰 News
+            </button>
+            <button 
+              class="tab-button {currentTab === 'users' ? 'active' : ''}" 
+              on:click={() => setTab('users')}
+            >
+              👥 Users
+            </button>
           </div>
-          <div class="artifact-item">
-            <NewsWidget />
-          </div>
-          <div class="artifact-item">
-            <UsersPanel 
-              users={activeUsers}
-              currentUserId={userId}
-            />
+          
+          <div class="artifact-container card">
+            {#if currentTab === 'chart'}
+              <StockChart />
+            {:else if currentTab === 'news'}
+              <NewsWidget />
+            {:else if currentTab === 'users'}
+              <UsersPanel 
+                users={activeUsers}
+                currentUserId={userId}
+              />
+            {/if}
           </div>
         </div>
       </div>
@@ -257,24 +286,23 @@
     height: 100vh;
     display: flex;
     flex-direction: column;
-    background-color: var(--black);
+    background-color: var(--primary-darkest);
   }
   
   .chat-container {
     height: 100%;
     display: flex;
     flex-direction: column;
-    margin: 0 auto;
     width: 100%;
-    max-width: 1600px;
-    background-color: var(--gray-100);
-    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+    background-color: var(--primary-dark);
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
   }
   
   .main-content {
     flex: 1;
     display: flex;
     overflow: hidden;
+    padding: 0 0.5rem;
   }
   
   .chat-panel {
@@ -282,7 +310,8 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    border-right: 1px solid var(--gray-200);
+    border-right: 1px solid var(--border-color);
+    margin-right: 0.5rem;
   }
   
   .message-list {
@@ -295,30 +324,27 @@
   }
   
   .artifacts-panel {
-    width: 35%;
+    width: 40%;
     min-width: 350px;
     display: flex;
     flex-direction: column;
-    gap: 1rem;
     padding: 1rem;
     overflow-y: auto;
-    background-color: var(--gray-100);
+    background-color: var(--primary-dark);
   }
   
-  .artifact-item {
+  .artifact-container {
     flex: 1;
-    min-height: 300px;
-    border-radius: 8px;
     overflow: hidden;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
   }
   
   .system-message {
     padding: 0.5rem 1rem;
-    background-color: var(--gray-200);
+    background-color: var(--primary-medium);
     border-radius: 4px;
     font-size: 0.85rem;
-    color: var(--gray-500);
+    color: var(--text-muted);
     text-align: center;
     margin: 0.5rem 0;
     max-width: 80%;
@@ -328,6 +354,7 @@
   @media (max-width: 1024px) {
     .main-content {
       flex-direction: column;
+      padding: 0;
     }
     
     .artifacts-panel {
@@ -338,11 +365,8 @@
     
     .chat-panel {
       border-right: none;
-      border-bottom: 1px solid var(--gray-200);
-    }
-    
-    .artifact-item {
-      min-height: 200px;
+      border-bottom: 1px solid var(--border-color);
+      margin-right: 0;
     }
   }
 </style>
