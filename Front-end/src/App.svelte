@@ -257,7 +257,7 @@
     height: 100vh;
     display: flex;
     flex-direction: column;
-    background-color: var(--gray-100);
+    background-color: var(--black);
   }
   
   .chat-container {
@@ -267,8 +267,8 @@
     margin: 0 auto;
     width: 100%;
     max-width: 1600px;
-    background-color: #fff;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    background-color: var(--gray-100);
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
   }
   
   .main-content {
@@ -302,6 +302,7 @@
     gap: 1rem;
     padding: 1rem;
     overflow-y: auto;
+    background-color: var(--gray-100);
   }
   
   .artifact-item {
@@ -309,15 +310,15 @@
     min-height: 300px;
     border-radius: 8px;
     overflow: hidden;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
   }
   
   .system-message {
     padding: 0.5rem 1rem;
-    background-color: var(--gray-100);
+    background-color: var(--gray-200);
     border-radius: 4px;
     font-size: 0.85rem;
-    color: var(--gray-600);
+    color: var(--gray-500);
     text-align: center;
     margin: 0.5rem 0;
     max-width: 80%;

@@ -1,13 +1,21 @@
-<script>
+<script lang="ts">
   import { onMount } from 'svelte';
   export let newsSource = "global"; // global, specific ticker, etc.
   
-  let newsItems = [];
+  interface NewsItem {
+    title: string;
+    source: string;
+    date: string;
+    snippet: string;
+    url: string;
+  }
+  
+  let newsItems: NewsItem[] = [];
   let isLoading = true;
-  let error = null;
+  let error: string | null = null;
   
   // Sample news articles for testing
-  const sampleNews = [
+  const sampleNews: NewsItem[] = [
     {
       title: "Markets rally on positive economic data",
       source: "Financial Times",
@@ -47,7 +55,7 @@
     }, 1000);
   });
   
-  export function updateNews(ticker = null) {
+  export function updateNews(ticker: string | null = null) {
     isLoading = true;
     
     // In a real implementation, this would make an API call with the ticker
@@ -143,7 +151,7 @@
   .loading-spinner {
     width: 24px;
     height: 24px;
-    border: 2px solid var(--primary-light);
+    border: 2px solid var(--gray-200);
     border-top: 2px solid var(--primary-color);
     border-radius: 50%;
     margin: 0 auto 1rem auto;
@@ -179,14 +187,14 @@
   }
   
   .news-item a:hover {
-    background-color: var(--gray-100);
+    background-color: var(--hover-bg);
   }
   
   .news-title {
     margin: 0 0 0.25rem 0;
     font-size: 0.95rem;
     font-weight: 600;
-    color: var(--text-dark);
+    color: var(--gray-600);
     line-height: 1.3;
   }
   
@@ -194,12 +202,13 @@
     display: flex;
     gap: 0.5rem;
     font-size: 0.75rem;
-    color: var(--gray-500);
+    color: var(--gray-400);
     margin-bottom: 0.25rem;
   }
   
   .news-source {
     font-weight: 500;
+    color: var(--primary-color);
   }
   
   .news-date {
@@ -209,7 +218,7 @@
   .news-snippet {
     margin: 0.25rem 0 0 0;
     font-size: 0.85rem;
-    color: var(--gray-600);
+    color: var(--gray-500);
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;

@@ -1,21 +1,26 @@
-<script>
+<script lang="ts">
   import { onMount } from 'svelte';
   
   export let symbol = "SPY"; // Default to S&P 500 ETF
   export let timeRange = "1d"; // Options: 1d, 1w, 1m, 3m, 1y, 5y
   
-  let chartData = null;
+  interface ChartPoint {
+    date: string;
+    value: number;
+  }
+  
+  let chartData: ChartPoint[] | null = null;
   let isLoading = true;
-  let error = null;
+  let error: string | null = null;
   
   // Sample data for mock chart
-  const generateMockData = (range) => {
+  const generateMockData = (range: string): ChartPoint[] => {
     const now = new Date();
-    const data = [];
-    let pointCount;
-    let startDate;
+    const data: ChartPoint[] = [];
+    let pointCount: number;
+    let startDate: Date;
     let baseValue = 450 + Math.random() * 50; // S&P 500 around this range
-    let volatility;
+    let volatility: number;
     
     switch(range) {
       case "1d":
@@ -90,8 +95,9 @@
         renderChart();
         
         isLoading = false;
-      } catch (err) {
-        error = err.message;
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+        error = errorMessage;
         isLoading = false;
       }
     }, 800);
@@ -101,10 +107,12 @@
     if (!chartData || !chartData.length) return;
     
     // Get chart dimensions
-    const canvas = document.getElementById('stock-chart');
+    const canvas = document.getElementById('stock-chart') as HTMLCanvasElement;
     if (!canvas) return;
     
     const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
     const width = canvas.width;
     const height = canvas.height;
     
@@ -119,9 +127,10 @@
     
     // Set chart styles
     const positiveColor = 'var(--primary-color)';
-    const startValue = chartData[0].value;
-    const endValue = chartData[chartData.length - 1].value;
-    const chartColor = endValue >= startValue ? positiveColor : '#ef4444';
+    const negativeColor = '#ef4444';
+    const startValue = chartData[0]?.value ?? 0;
+    const endValue = chartData[chartData.length - 1]?.value ?? 0;
+    const chartColor = endValue >= startValue ? positiveColor : negativeColor;
     
     ctx.strokeStyle = chartColor;
     ctx.lineWidth = 2;
@@ -133,7 +142,7 @@
     
     // Plot each point
     chartData.forEach((point, index) => {
-      const x = (index / (chartData.length - 1)) * width;
+      const x = (index / (chartData!.length - 1)) * width;
       const y = height - ((point.value - minValue) / valueRange) * height;
       
       if (index === 0) {
@@ -159,7 +168,7 @@
     
     // Trace the line again
     chartData.forEach((point, index) => {
-      const x = (index / (chartData.length - 1)) * width;
+      const x = (index / (chartData!.length - 1)) * width;
       const y = height - ((point.value - minValue) / valueRange) * height;
       ctx.lineTo(x, y);
     });
@@ -180,12 +189,12 @@
     { id: "5y", label: "5Y" }
   ];
   
-  const handleTimeRangeChange = (range) => {
+  const handleTimeRangeChange = (range: string) => {
     timeRange = range;
     updateChart();
   };
   
-  export function updateStock(newSymbol) {
+  export function updateStock(newSymbol: string) {
     if (newSymbol && newSymbol !== symbol) {
       symbol = newSymbol;
       updateChart();
@@ -196,14 +205,16 @@
   onMount(() => {
     // Make sure canvas is properly sized
     const resizeCanvas = () => {
-      const canvas = document.getElementById('stock-chart');
+      const canvas = document.getElementById('stock-chart') as HTMLCanvasElement;
       if (canvas) {
         const container = canvas.parentElement;
-        canvas.width = container.clientWidth;
-        canvas.height = Math.max(container.clientHeight, 200);
-        
-        if (chartData) {
-          renderChart();
+        if (container) {
+          canvas.width = container.clientWidth;
+          canvas.height = Math.max(container.clientHeight, 200);
+          
+          if (chartData) {
+            renderChart();
+          }
         }
       }
     };
@@ -291,11 +302,13 @@
   .symbol-info h3 {
     margin: 0;
     font-size: 1.1rem;
+    color: var(--gray-600);
   }
   
   .current-price {
     font-weight: 600;
     font-size: 1rem;
+    color: var(--gray-500);
   }
   
   .price-change {
@@ -310,7 +323,7 @@
   }
   
   .price-change.negative {
-    background-color: #fee2e2;
+    background-color: rgba(239, 68, 68, 0.2);
     color: #ef4444;
   }
   
@@ -326,11 +339,11 @@
     padding: 0.25rem 0.5rem;
     border-radius: 4px;
     cursor: pointer;
-    color: var(--gray-500);
+    color: var(--gray-400);
   }
   
   .time-range-button:hover {
-    background-color: var(--gray-100);
+    background-color: var(--hover-bg);
   }
   
   .time-range-button.active {
@@ -362,15 +375,15 @@
     align-items: center;
     justify-content: center;
     padding: 1rem;
-    background-color: rgba(255, 255, 255, 0.8);
+    background-color: rgba(17, 24, 39, 0.8);
     z-index: 1;
-    color: var(--gray-500);
+    color: var(--gray-400);
   }
   
   .loading-spinner {
     width: 30px;
     height: 30px;
-    border: 3px solid var(--primary-light);
+    border: 3px solid var(--gray-200);
     border-top: 3px solid var(--primary-color);
     border-radius: 50%;
     margin-bottom: 1rem;

@@ -26,8 +26,9 @@
     justify-content: center;
     padding: 1rem;
     background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-    color: white;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    color: var(--text-light);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    border-bottom: 1px solid var(--gray-200);
   }
   
   .header-content {
@@ -52,6 +53,7 @@
     margin: 0;
     font-size: 1.5rem;
     font-weight: 600;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   }
   
   .tagline {
@@ -63,14 +65,16 @@
   .user-greeting {
     margin-left: auto;
     font-size: 0.95rem;
-    background-color: rgba(255, 255, 255, 0.2);
+    background-color: rgba(0, 0, 0, 0.2);
     padding: 0.4rem 0.8rem;
     border-radius: 20px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
   }
   
   .user-greeting strong {
     font-weight: 600;
+    color: var(--text-light);
   }
   
   @media (max-width: 640px) {
