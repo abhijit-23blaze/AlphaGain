@@ -4,14 +4,16 @@
   line-height: 1.5;
   font-weight: 400;
 
+  /* Default theme (dark) */
   color: #e0e0e0;
   background-color: #121212;
 
-  /* Color scheme variables */
+  /* Dark theme variables */
   --primary-darkest: #121212; /* Dark background */
   --primary-dark: #1e1e1e; /* Slightly lighter dark */
   --primary-medium: #1a5d38; /* Dark green */
   --primary-light: #2ecc71; /* Lighter green accent */
+  --primary-light-translucent: rgba(46, 204, 113, 0.15); /* Translucent green for indicators */
   
   --text-light: #e0e0e0;
   --text-muted: #a0a0a0;
@@ -26,6 +28,29 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Light theme */
+html.light-mode {
+  /* Override the default theme with light mode values */
+  color: #333333;
+  background-color: #ffffff;
+
+  /* Light theme variables */
+  --primary-darkest: #ffffff; /* Light background */
+  --primary-dark: #f5f5f5; /* Slightly darker light */
+  --primary-medium: #27ae60; /* Medium green */
+  --primary-light: #1a5d38; /* Darker green accent for better contrast */
+  --primary-light-translucent: rgba(39, 174, 96, 0.15); /* Translucent green for indicators */
+  
+  --text-light: #333333;
+  --text-muted: #666666;
+  --text-dark: #111111;
+  
+  --border-color: rgba(39, 174, 96, 0.2);
+  --card-bg: #f5f5f5;
+  --hover-bg: #e8e8e8;
+  --active-bg: #27ae60;
 }
 
 * {
@@ -110,4 +135,30 @@ button {
   display: flex;
   gap: 0.5rem;
   margin-bottom: 0.75rem;
+}
+
+/* Theme toggle styling */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background-color: var(--primary-dark);
+  color: var(--text-light);
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.theme-toggle:hover {
+  background-color: var(--hover-bg);
+  transform: scale(1.05);
+}
+
+.theme-toggle svg {
+  width: 18px;
+  height: 18px;
 }

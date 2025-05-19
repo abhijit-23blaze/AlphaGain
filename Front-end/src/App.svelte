@@ -9,6 +9,7 @@
   import StockChart from './lib/components/artifacts/StockChart.svelte';
   import './app.css';
   import 'highlight.js/styles/github.css';
+  import ThemeToggle from './lib/components/ThemeToggle.svelte';
   
   // App state
   let isLoggedIn = false;
@@ -22,6 +23,29 @@
   
   // Artifact state
   let currentTab = 'chart'; // 'chart', 'news', 'users'
+  
+  // Track active tool calls
+  let activeToolCalls: { tool_name: string, status: string, ticker: string }[] = [];
+  
+  // Function to get friendly tool name for display
+  function getFriendlyToolName(toolName: string): string {
+    const toolNames: {[key: string]: string} = {
+      'PolygonStockTool': 'Fetching stock data',
+      'PolygonStockChartTool': 'Generating stock chart',
+      'PolygonNewsTool': 'Retrieving financial news'
+    };
+    return toolNames[toolName] || `Using ${toolName}`;
+  }
+  
+  // Get an icon for the tool type
+  function getToolIcon(toolName: string): string {
+    const toolIcons: {[key: string]: string} = {
+      'PolygonStockTool': '📊',
+      'PolygonStockChartTool': '📈',
+      'PolygonNewsTool': '📰'
+    };
+    return toolIcons[toolName] || '🔍';
+  }
   
   // Generate a random user ID for this session
   function generateUserId() {
@@ -61,6 +85,9 @@
     const wsUrl = `${protocol}//${host}/api/chat/${userId}`;
     
     websocket = new WebSocket(wsUrl);
+    
+    // Store the websocket in a global variable so other components can access it
+    (window as any).appWebsocket = websocket;
     
     websocket.onopen = () => {
       console.log('WebSocket connection established');
@@ -144,6 +171,27 @@
           // Handle typing indicators (could implement in future)
           break;
           
+        case 'tool_call':
+          // Handle tool call notifications
+          const toolName = data.tool_name;
+          const toolStatus = data.status;
+          const ticker = data.ticker || "";
+          
+          if (toolStatus === 'started') {
+            // Add to active tool calls
+            activeToolCalls = [...activeToolCalls, { 
+              tool_name: toolName, 
+              status: toolStatus,
+              ticker: ticker
+            }];
+          } else if (toolStatus === 'completed') {
+            // Remove from active tool calls
+            activeToolCalls = activeToolCalls.filter(
+              tool => !(tool.tool_name === toolName && tool.status === 'started')
+            );
+          }
+          break;
+          
         case 'error':
           console.error('WebSocket error:', data.content);
           break;
@@ -213,6 +261,9 @@
 
 <main>
   {#if !isLoggedIn}
+    <div class="login-header">
+      <ThemeToggle />
+    </div>
     <Login 
       isLoading={isConnecting} 
       on:login={handleLogin} 
@@ -237,6 +288,24 @@
                 />
               {/if}
             {/each}
+            
+            {#if activeToolCalls.length > 0}
+              <div class="tool-calls-container">
+                {#each activeToolCalls as toolCall}
+                  <div class="tool-call-indicator">
+                    <div class="spinner"></div>
+                    <span class="tool-icon">{getToolIcon(toolCall.tool_name)}</span>
+                    <span class="tool-name">
+                      {getFriendlyToolName(toolCall.tool_name)}
+                      {#if toolCall.ticker && toolCall.ticker !== "unknown"}
+                        for <strong>{toolCall.ticker}</strong>
+                      {/if}
+                    </span>
+                    <div class="tool-status">Working...</div>
+                  </div>
+                {/each}
+              </div>
+            {/if}
           </div>
           
           <GroupChatInput 
@@ -293,6 +362,13 @@
     display: flex;
     flex-direction: column;
     background-color: var(--primary-darkest);
+  }
+  
+  .login-header {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    z-index: 10;
   }
   
   .chat-container {
@@ -355,6 +431,59 @@
     margin: 0.5rem 0;
     max-width: 80%;
     align-self: center;
+  }
+  
+  .tool-calls-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.5rem 0;
+    margin-top: 0.5rem;
+  }
+  
+  .tool-call-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background-color: var(--primary-light-translucent);
+    border-radius: 4px;
+    font-size: 0.85rem;
+    color: var(--text-light);
+    margin-left: 3rem;
+    max-width: 90%;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border-left: 3px solid var(--primary-light);
+  }
+  
+  .tool-icon {
+    font-size: 1rem;
+    margin-right: 0.25rem;
+  }
+  
+  .tool-name {
+    flex: 1;
+  }
+  
+  .tool-status {
+    margin-left: auto;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-style: italic;
+  }
+  
+  .spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--text-light);
+    border-top: 2px solid var(--accent-light);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
   }
   
   @media (max-width: 1024px) {

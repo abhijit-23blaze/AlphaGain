@@ -21,6 +21,7 @@
 - ✅ Made design responsive for different screen sizes
 - ✅ Created documentation (README.md)
 - ✅ Added TypeScript type annotations to fix linter errors
+- ✅ Implemented dark/light theme toggle with system preference detection
 
 ## To Do
 - ⬜ Connect StockChart to the backend API (getStockPriceHistory)
@@ -32,7 +33,6 @@
 - ⬜ Implement proper authentication system
 
 ## Potential Future Enhancements
-- ⬜ Dark/light theme toggle
 - ⬜ Portfolio tracking functionality
 - ⬜ Watchlist for favorite stocks
 - ⬜ Advanced technical indicators on charts

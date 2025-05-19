@@ -1,19 +1,25 @@
 <script lang="ts">
   // Header component for AlphaGain
+  import ThemeToggle from './ThemeToggle.svelte';
   export let username: string | null = null;
 </script>
 
 <header>
   <div class="header-content">
     <div class="logo">
-      <span class="logo-icon"></span>
+      <span class="logo-icon">🐺</span>
       <h1>AlphaGain</h1>
     </div>
-    {#if username}
-      <div class="user-greeting">
-        <span>Hello, <strong>{username}</strong></span>
-      </div>
-    {/if}
+    
+    <div class="header-right">
+      <ThemeToggle />
+      
+      {#if username}
+        <div class="user-greeting">
+          <span>Hello, <strong>{username}</strong></span>
+        </div>
+      {/if}
+    </div>
   </div>
 </header>
 
@@ -30,6 +36,7 @@
   .header-content {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     width: 100%;
     position: relative;
   }
@@ -51,8 +58,13 @@
     letter-spacing: 0.01em;
   }
   
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  
   .user-greeting {
-    margin-left: auto;
     font-size: 0.875rem;
     background-color: var(--primary-medium);
     padding: 0.4rem 0.8rem;
@@ -71,9 +83,13 @@
       gap: 0.5rem;
     }
     
+    .header-right {
+      width: 100%;
+      justify-content: space-between;
+    }
+    
     .user-greeting {
       margin-left: 0;
-      margin-top: 0.5rem;
     }
   }
 </style> 

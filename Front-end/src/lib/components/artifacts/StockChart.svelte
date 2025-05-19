@@ -1,62 +1,140 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   
   export let symbol = "SPY"; // Default to S&P 500 ETF
-  export let timeRange = "1d"; // Options: 1d, 1w, 1m, 3m, 1y, 5y
+  export let timeRange = "1M"; // Options: 1D, 1W, 1M, 3M, 1Y, 5Y
   
   interface ChartPoint {
-    date: string;
-    value: number;
+    date: string | number;
+    open: number;
+    high: number;
+    low: number;
+    close: number;
+    volume: number;
   }
   
   let chartData: ChartPoint[] | null = null;
   let isLoading = true;
   let error: string | null = null;
+  let isLightMode = false; // Track light/dark mode
+  let websocket: WebSocket | null = null;
   
-  // Sample data for mock chart
-  const generateMockData = (range: string): ChartPoint[] => {
+  // Time range selector entries with proper format
+  const timeRanges = [
+    { id: "1D", label: "1D" },
+    { id: "1W", label: "1W" },
+    { id: "1M", label: "1M" },
+    { id: "3M", label: "3M" },
+    { id: "1Y", label: "1Y" },
+    { id: "5Y", label: "5Y" }
+  ];
+  
+  // Function to request chart data from the backend
+  const requestChartData = (ticker: string, timeframe: string) => {
+    if (!websocket || websocket.readyState !== WebSocket.OPEN) {
+      // If socket not open, try to use mock data
+      setMockData(ticker, timeframe);
+      return;
+    }
+    
+    isLoading = true;
+    error = null;
+    
+    try {
+      // Send chart request via websocket
+      websocket.send(JSON.stringify({
+        type: 'chart_request',
+        ticker: ticker,
+        timeframe: timeframe
+      }));
+    } catch (err) {
+      console.error('Error requesting chart data:', err);
+      error = 'Failed to request chart data. Please try again.';
+      isLoading = false;
+      
+      // Fall back to mock data
+      setMockData(ticker, timeframe);
+    }
+  };
+  
+  // Process websocket message
+  const handleWebSocketMessage = (event: MessageEvent) => {
+    try {
+      const data = JSON.parse(event.data);
+      
+      if (data.type === 'chart_data') {
+        const chartResult = data.data;
+        
+        if (chartResult.error) {
+          error = chartResult.error;
+          isLoading = false;
+          return;
+        }
+        
+        if (chartResult.ticker) {
+          symbol = chartResult.ticker;
+        }
+        
+        if (chartResult.timeframe) {
+          timeRange = chartResult.timeframe;
+        }
+        
+        chartData = chartResult.data || [];
+        renderChart();
+        isLoading = false;
+      }
+    } catch (err) {
+      console.error('Error processing websocket message:', err);
+    }
+  };
+  
+  // Generate mock data as a fallback
+  const setMockData = (ticker: string, timeframe: string) => {
+    symbol = ticker;
+    timeRange = timeframe;
+    
     const now = new Date();
-    const data: ChartPoint[] = [];
+    const mockData: ChartPoint[] = [];
     let pointCount: number;
     let startDate: Date;
-    let baseValue = 450 + Math.random() * 50; // S&P 500 around this range
+    let baseValue = 100 + Math.random() * 50;
     let volatility: number;
     
-    switch(range) {
-      case "1d":
+    switch(timeframe) {
+      case "1D":
         pointCount = 24;
         startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
         volatility = 0.5;
         break;
-      case "1w":
+      case "1W":
         pointCount = 7;
         startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         volatility = 1;
         break;
-      case "1m":
+      case "1M":
         pointCount = 30;
         startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
         volatility = 2;
         break;
-      case "3m":
+      case "3M":
         pointCount = 90;
         startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
         volatility = 5;
         break;
-      case "1y":
+      case "1Y":
         pointCount = 52;
         startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
         volatility = 10;
         break;
-      case "5y":
+      case "5Y":
         pointCount = 60;
         startDate = new Date(now.getTime() - 5 * 365 * 24 * 60 * 60 * 1000);
         volatility = 30;
         break;
       default:
-        pointCount = 24;
-        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-        volatility = 0.5;
+        pointCount = 30;
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        volatility = 2;
     }
     
     let currentValue = baseValue;
@@ -65,42 +143,27 @@
       const pointDate = new Date(startDate.getTime() + ((now.getTime() - startDate.getTime()) * (i / (pointCount - 1))));
       
       // Generate random price movements
-      currentValue = currentValue + (Math.random() * volatility * 2 - volatility);
+      const change = (Math.random() * volatility * 2 - volatility);
+      currentValue = Math.max(currentValue + change, baseValue * 0.7);
       
-      // Ensure value doesn't go too low
-      if (currentValue < baseValue * 0.7) {
-        currentValue = baseValue * 0.7 + Math.random() * 5;
-      }
+      const high = currentValue * (1 + Math.random() * 0.02);
+      const low = currentValue * (1 - Math.random() * 0.02);
+      const open = low + Math.random() * (high - low);
+      const close = low + Math.random() * (high - low);
       
-      data.push({
-        date: pointDate.toISOString(),
-        value: parseFloat(currentValue.toFixed(2))
+      mockData.push({
+        date: pointDate.getTime(),
+        open: parseFloat(open.toFixed(2)),
+        high: parseFloat(high.toFixed(2)),
+        low: parseFloat(low.toFixed(2)),
+        close: parseFloat(close.toFixed(2)),
+        volume: Math.floor(Math.random() * 1000000)
       });
     }
     
-    return data;
-  };
-  
-  const updateChart = () => {
-    isLoading = true;
-    error = null;
-    
-    // In a real app, this would make an API call
-    // For this demo, we'll use generated data
-    setTimeout(() => {
-      try {
-        chartData = generateMockData(timeRange);
-        
-        // This is where we would render a real chart library
-        renderChart();
-        
-        isLoading = false;
-      } catch (err: unknown) {
-        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-        error = errorMessage;
-        isLoading = false;
-      }
-    }, 800);
+    chartData = mockData;
+    renderChart();
+    isLoading = false;
   };
   
   const renderChart = () => {
@@ -120,30 +183,51 @@
     ctx.clearRect(0, 0, width, height);
     
     // Find min and max values
-    const values = chartData.map(point => point.value);
-    const minValue = Math.min(...values) * 0.995; // Add some padding
-    const maxValue = Math.max(...values) * 1.005;
+    const highValues = chartData.map(point => point.high);
+    const lowValues = chartData.map(point => point.low);
+    const maxValue = Math.max(...highValues) * 1.005; // Add some padding
+    const minValue = Math.min(...lowValues) * 0.995;
     const valueRange = maxValue - minValue;
     
     // Set chart styles
-    const startValue = chartData[0]?.value ?? 0;
-    const endValue = chartData[chartData.length - 1]?.value ?? 0;
-    const isPositive = endValue >= startValue;
+    const firstPoint = chartData[0];
+    const lastPoint = chartData[chartData.length - 1];
+    const isPositive = lastPoint.close >= firstPoint.open;
     
-    const chartColor = isPositive ? '#948979' : '#bc6c25';
+    // Update chart colors based on theme
+    const chartColor = isPositive ? 
+      (isLightMode ? '#27ae60' : '#1a5d38') : 
+      (isLightMode ? '#e74c3c' : '#c0392b');
     
+    // Draw grid
+    ctx.beginPath();
+    ctx.strokeStyle = isLightMode ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)';
+    ctx.lineWidth = 1;
+    
+    // Draw horizontal grid lines
+    for (let i = 0; i <= 5; i++) {
+      const y = (i / 5) * height;
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+    }
+    ctx.stroke();
+    
+    // Function to scale Y values
+    const scaleY = (value: number) => {
+      return height - ((value - minValue) / valueRange * height);
+    };
+    
+    // Draw price line (using close prices)
+    ctx.beginPath();
     ctx.strokeStyle = chartColor;
     ctx.lineWidth = 2;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     
-    // Start drawing
-    ctx.beginPath();
-    
     // Plot each point
     chartData.forEach((point, index) => {
       const x = (index / (chartData!.length - 1)) * width;
-      const y = height - ((point.value - minValue) / valueRange) * height;
+      const y = scaleY(point.close);
       
       if (index === 0) {
         ctx.moveTo(x, y);
@@ -169,7 +253,7 @@
     // Trace the line again
     chartData.forEach((point, index) => {
       const x = (index / (chartData!.length - 1)) * width;
-      const y = height - ((point.value - minValue) / valueRange) * height;
+      const y = scaleY(point.close);
       ctx.lineTo(x, y);
     });
     
@@ -179,30 +263,92 @@
     ctx.fill();
   };
   
-  // Time range selector
-  const timeRanges = [
-    { id: "1d", label: "1D" },
-    { id: "1w", label: "1W" },
-    { id: "1m", label: "1M" },
-    { id: "3m", label: "3M" },
-    { id: "1y", label: "1Y" },
-    { id: "5y", label: "5Y" }
-  ];
-  
   const handleTimeRangeChange = (range: string) => {
     timeRange = range;
-    updateChart();
+    requestChartData(symbol, timeRange);
   };
   
-  export function updateStock(newSymbol: string) {
-    if (newSymbol && newSymbol !== symbol) {
-      symbol = newSymbol;
-      updateChart();
+  export function updateStockData(newSymbol: string, newTimeRange: string = timeRange) {
+    // Normalize ticker symbol
+    newSymbol = newSymbol.toUpperCase().trim();
+    
+    // Ensure timeRange is one of the allowed values
+    const validTimeframe = timeRanges.find(t => t.id === newTimeRange);
+    const timeframe = validTimeframe ? validTimeframe.id : "1M";
+    
+    // Request new chart data
+    if (newSymbol) {
+      requestChartData(newSymbol, timeframe);
+    }
+  }
+  
+  // Function to check current theme
+  function checkTheme() {
+    isLightMode = document.documentElement.classList.contains('light-mode');
+    if (chartData) {
+      renderChart();
     }
   }
   
   // Initialize chart on mount
   onMount(() => {
+    // Check initial theme
+    checkTheme();
+    
+    // Get or create websocket connection
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.hostname === 'localhost' 
+      ? 'localhost:8000' 
+      : window.location.host;
+      
+    try {
+      // Try to use the existing websocket if available
+      websocket = (window as any).appWebsocket || null;
+      
+      // If no websocket exists or it's not open, create a new one
+      if (!websocket || websocket.readyState !== WebSocket.OPEN) {
+        // Use mock data instead
+        setMockData(symbol, timeRange);
+      } else {
+        // Add our handler to the existing websocket
+        const originalOnMessage = websocket.onmessage;
+        
+        // Safe type assertion since we've already checked websocket is not null
+        if (websocket) {
+          websocket.onmessage = (event) => {
+            // Call original handler if it exists
+            if (typeof originalOnMessage === 'function') {
+              originalOnMessage.call(websocket as WebSocket, event);
+            }
+            
+            // Handle our chart messages
+            handleWebSocketMessage(event);
+          };
+        }
+        
+        // Request initial chart data
+        requestChartData(symbol, timeRange);
+      }
+    } catch (err) {
+      console.error('Error setting up websocket for chart:', err);
+      // Fall back to mock data
+      setMockData(symbol, timeRange);
+    }
+    
+    // Set up theme change detection
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'class') {
+          checkTheme();
+        }
+      });
+    });
+    
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+    
     // Make sure canvas is properly sized
     const resizeCanvas = () => {
       const canvas = document.getElementById('stock-chart') as HTMLCanvasElement;
@@ -222,10 +368,9 @@
     window.addEventListener('resize', resizeCanvas);
     setTimeout(resizeCanvas, 0); // Initial sizing after DOM update
     
-    updateChart();
-    
     return () => {
       window.removeEventListener('resize', resizeCanvas);
+      observer.disconnect();
     };
   });
 </script>
@@ -236,11 +381,11 @@
       <h3>{symbol}</h3>
       {#if chartData && chartData.length > 0}
         <div class="price-info">
-          <span class="current-price">${chartData[chartData.length - 1].value}</span>
+          <span class="current-price">${chartData[chartData.length - 1].close.toFixed(2)}</span>
           
           {#if chartData.length > 1}
-            {@const startPrice = chartData[0].value}
-            {@const endPrice = chartData[chartData.length - 1].value}
+            {@const startPrice = chartData[0].open}
+            {@const endPrice = chartData[chartData.length - 1].close}
             {@const change = endPrice - startPrice}
             {@const percentChange = (change / startPrice) * 100}
             
@@ -322,13 +467,13 @@
   }
   
   .price-change.positive {
-    background-color: rgba(148, 137, 121, 0.25);
-    color: #DFD0B8;
+    background-color: rgba(39, 174, 96, 0.2);
+    color: var(--primary-light);
   }
   
   .price-change.negative {
-    background-color: rgba(188, 108, 37, 0.25);
-    color: #DFD0B8;
+    background-color: rgba(231, 76, 60, 0.2);
+    color: var(--text-light);
   }
   
   .time-range-selector {
@@ -360,7 +505,7 @@
     align-items: center;
     justify-content: center;
     padding: 1rem;
-    background-color: rgba(57, 62, 70, 0.85);
+    background-color: var(--primary-dark);
     z-index: 1;
     color: var(--text-muted);
   }
