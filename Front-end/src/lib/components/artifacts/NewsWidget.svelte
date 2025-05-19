@@ -70,7 +70,7 @@
         if (newsItems.length === 0) {
           newsItems = [{
             title: `No recent news found for ${ticker}`,
-            source: "FinanceGPT",
+            source: "AlphaGain",
             date: "just now",
             snippet: "Try another ticker or check back later for updates.",
             url: "#"

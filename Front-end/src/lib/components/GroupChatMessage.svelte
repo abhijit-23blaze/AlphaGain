@@ -115,11 +115,11 @@
   }
   
   .message.current-user {
-    background-color: rgba(0, 102, 204, 0.05);
+    background-color: rgba(148, 137, 121, 0.1);
   }
   
   .message.ai-message {
-    background-color: rgba(0, 102, 204, 0.08);
+    background-color: rgba(148, 137, 121, 0.15);
   }
   
   @keyframes fadeIn {
@@ -131,22 +131,22 @@
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    background-color: #555;
-    color: white;
+    background-color: var(--primary-darkest);
+    color: var(--text-light);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 600;
+    font-weight: 500;
     font-size: 0.8rem;
     flex-shrink: 0;
   }
   
   .ai-avatar {
-    background-color: #0066cc;
+    background-color: var(--primary-medium);
   }
   
   .current-user-avatar {
-    background-color: #008800;
+    background-color: var(--primary-medium);
   }
   
   .message-content {
@@ -162,9 +162,9 @@
   }
   
   .username {
-    font-weight: 600;
+    font-weight: 500;
     font-size: 0.9rem;
-    color: #333;
+    color: var(--text-light);
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -173,19 +173,20 @@
   .user-tag {
     font-size: 0.7rem;
     padding: 0.1rem 0.3rem;
-    background-color: #eee;
+    background-color: var(--primary-medium);
     border-radius: 4px;
-    color: #666;
+    color: var(--text-light);
     font-weight: 400;
   }
   
   .timestamp {
     font-size: 0.75rem;
-    color: #999;
+    color: var(--text-muted);
   }
   
   .content {
     word-break: break-word;
+    color: var(--text-light);
   }
   
   .user-content {
@@ -207,6 +208,7 @@
     margin-top: 1em;
     margin-bottom: 0.5em;
     font-weight: 600;
+    color: var(--text-light);
   }
   
   .markdown-content :global(h1) {
@@ -236,17 +238,18 @@
   }
   
   .markdown-content :global(pre) {
-    background-color: #f2f2f2;
+    background-color: var(--primary-darkest);
     padding: 0.75em;
     border-radius: 4px;
     overflow-x: auto;
     margin: 0.75em 0;
+    border: 1px solid var(--border-color);
   }
   
   .markdown-content :global(code) {
     font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
     font-size: 0.9em;
-    background-color: #f2f2f2;
+    background-color: var(--primary-darkest);
     padding: 0.2em 0.4em;
     border-radius: 3px;
   }
@@ -263,17 +266,18 @@
   .markdown-content :global(blockquote) {
     margin: 0.5em 0;
     padding-left: 1em;
-    border-left: 4px solid #ddd;
-    color: #555;
+    border-left: 4px solid var(--primary-medium);
+    color: var(--text-muted);
   }
   
   .markdown-content :global(a) {
-    color: #0066cc;
+    color: var(--primary-light);
     text-decoration: none;
   }
   
   .markdown-content :global(a:hover) {
     text-decoration: underline;
+    color: var(--primary-light);
   }
   
   .markdown-content :global(table) {
@@ -284,13 +288,13 @@
   
   .markdown-content :global(th),
   .markdown-content :global(td) {
-    border: 1px solid #ddd;
+    border: 1px solid var(--border-color);
     padding: 0.5em;
     text-align: left;
   }
   
   .markdown-content :global(th) {
-    background-color: #f2f2f2;
+    background-color: var(--primary-darkest);
     font-weight: 600;
   }
 </style> 

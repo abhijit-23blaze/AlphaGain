@@ -127,7 +127,7 @@ async def websocket_chat(websocket: WebSocket, user_id: str):
                         typing_message = {
                             "type": "typing",
                             "user_id": "ai",
-                            "username": "FinanceGPT"
+                            "username": "AlphaGain"
                         }
                         await manager.broadcast(typing_message)
                         
@@ -142,7 +142,7 @@ async def websocket_chat(websocket: WebSocket, user_id: str):
                                     await manager.broadcast({
                                         "type": "ai_stream",
                                         "user_id": "ai",
-                                        "username": "FinanceGPT",
+                                        "username": "AlphaGain",
                                         "content": chunk["output"]
                                     })
                             

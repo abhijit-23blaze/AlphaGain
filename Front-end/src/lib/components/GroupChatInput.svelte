@@ -52,7 +52,7 @@
       bind:value={message} 
       on:keydown={handleKeyDown}
       on:input={handleTyping}
-      placeholder={aiToggle ? "Ask FinanceGPT or chat with the group..." : "Chat with the group..."}
+      placeholder={aiToggle ? "Ask AlphaGain or chat with the group..." : "Chat with the group..."}
       rows="1"
       disabled={isLoading}
     ></textarea>
@@ -69,8 +69,8 @@
 <style>
   .chat-input {
     padding: 1rem;
-    border-top: 1px solid #eee;
-    background-color: white;
+    border-top: 1px solid var(--border-color);
+    background-color: var(--primary-dark);
   }
   
   form {
@@ -82,29 +82,37 @@
   textarea {
     flex: 1;
     padding: 0.75rem;
-    border: 1px solid #ddd;
+    border: 1px solid var(--border-color);
     border-radius: 8px;
     resize: none;
     font-family: inherit;
-    font-size: 1rem;
+    font-size: 0.95rem;
     min-height: 20px;
     max-height: 150px;
     overflow-y: auto;
+    background-color: var(--primary-darkest);
+    color: var(--text-light);
   }
   
   textarea:focus {
     outline: none;
-    border-color: #0066cc;
+    border-color: var(--primary-light);
+    box-shadow: 0 0 0 1px var(--primary-medium);
   }
   
   textarea:disabled {
-    background-color: #f5f5f5;
-    color: #999;
+    background-color: #1a1a1a;
+    color: var(--text-muted);
+  }
+  
+  textarea::placeholder {
+    color: var(--text-muted);
+    opacity: 0.7;
   }
   
   button[type="submit"] {
-    background-color: #0066cc;
-    color: white;
+    background-color: var(--primary-medium);
+    color: var(--text-light);
     border: none;
     border-radius: 50%;
     width: 40px;
@@ -117,12 +125,13 @@
   }
   
   button[type="submit"]:hover {
-    background-color: #0055aa;
+    background-color: var(--primary-light);
   }
   
   button[type="submit"]:disabled {
-    background-color: #ccc;
+    background-color: #333;
     cursor: not-allowed;
+    opacity: 0.6;
   }
   
   button[type="submit"] svg {
@@ -134,21 +143,23 @@
     padding: 0.5rem 0.75rem;
     border-radius: 4px;
     font-size: 0.8rem;
-    font-weight: 600;
+    font-weight: 500;
     cursor: pointer;
-    border: 1px solid #ddd;
-    background-color: #f5f5f5;
-    color: #666;
+    border: 1px solid var(--border-color);
+    background-color: var(--primary-darkest);
+    color: var(--text-muted);
     transition: all 0.2s;
   }
   
   .ai-toggle-button.active {
-    background-color: #0066cc;
-    color: white;
-    border-color: #0055aa;
+    background-color: var(--primary-medium);
+    color: var(--text-light);
+    border-color: var(--primary-medium);
   }
   
   .ai-toggle-button:hover {
-    opacity: 0.9;
+    background-color: var(--hover-bg);
+    color: var(--primary-light);
+    border-color: var(--primary-light);
   }
 </style> 

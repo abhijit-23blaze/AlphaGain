@@ -1,4 +1,4 @@
-# FinGen Application
+# AlphaGain Application
 
 A Svelte-based financial application with AI integration, built on the Svelte + TS + Vite template.
 

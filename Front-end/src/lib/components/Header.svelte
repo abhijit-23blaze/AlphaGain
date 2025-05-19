@@ -1,13 +1,13 @@
-<script>
-  // Header component for FinanceGPT
-  export let username = '';
+<script lang="ts">
+  // Header component for AlphaGain
+  export let username: string | null = null;
 </script>
 
 <header>
   <div class="header-content">
     <div class="logo">
-      <span class="logo-icon">💹</span>
-      <h1>FinanceGPT</h1>
+      <span class="logo-icon"></span>
+      <h1>AlphaGain</h1>
     </div>
     {#if username}
       <div class="user-greeting">

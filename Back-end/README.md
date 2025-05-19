@@ -1,4 +1,4 @@
-# FinanceGPT Backend
+# AlphaGain Backend
 
 A FastAPI backend with WebSocket support for a financial analysis AI assistant powered by Google Gemini, Agno, and Polygon API.
 

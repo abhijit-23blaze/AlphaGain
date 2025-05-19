@@ -1,4 +1,4 @@
-# FinGen Implementation Status
+# AlphaGain Implementation Status
 
 ## Completed Items
 - ✅ Redesigned UI with split layout (chat on left, artifacts on right)

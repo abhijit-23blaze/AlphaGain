@@ -93,7 +93,7 @@
             
             // Add AI to the users list if not already present
             if (!activeUsers.find(u => u.user_id === 'ai')) {
-              activeUsers = [...activeUsers, { user_id: 'ai', username: 'FinanceGPT' }];
+              activeUsers = [...activeUsers, { user_id: 'ai', username: 'AlphaGain' }];
             }
           }
           break;
@@ -119,7 +119,7 @@
             messages = [...messages, {
               type: 'ai_stream',
               user_id: 'ai',
-              username: 'FinanceGPT',
+              username: 'AlphaGain',
               content: data.content,
               timestamp: new Date().toISOString()
             }];
@@ -203,6 +203,12 @@
       type: 'typing'
     });
   }
+
+  // Initialize users array with AI
+  onMount(() => {
+    // Add the AI system user
+    activeUsers = [...activeUsers, { user_id: 'ai', username: 'AlphaGain' }];
+  });
 </script>
 
 <main>
@@ -227,7 +233,7 @@
                 <GroupChatMessage 
                   {message}
                   currentUserId={userId}
-                  isAiMessage={message.user_id === 'ai'}
+                  isAiMessage={message.user_id === 'ai' && message.username === 'AlphaGain'}
                 />
               {/if}
             {/each}

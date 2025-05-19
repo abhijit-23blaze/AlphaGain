@@ -21,7 +21,7 @@ from routers import chat, websocket
 
 # Create FastAPI app
 app = FastAPI(
-    title="FinanceGPT API",
+    title="AlphaGain API",
     description="Financial analysis and insights powered by Gemini and Agno",
     version="1.0.0"
 )
@@ -54,7 +54,7 @@ app.include_router(websocket.router, prefix="/api")
 async def root():
     status = "warning" if not GEMINI_API_KEY or not POLYGON_API_KEY else "ok"
     
-    message = "FinanceGPT API is running"
+    message = "AlphaGain API is running"
     if not GEMINI_API_KEY:
         message += " (WARNING: GEMINI_API_KEY not set)"
     if not POLYGON_API_KEY:

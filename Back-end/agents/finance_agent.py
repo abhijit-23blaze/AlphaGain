@@ -105,7 +105,7 @@ async def get_stock_price_history(ticker: str, from_date: str, to_date: str) -> 
 
 # Define a system prompt for the finance agent
 system_prompt = f"""
-You are a highly capable financial assistant named FinanceGPT. Your purpose is to provide insightful and concise analysis to help users make informed financial decisions.
+You are a highly capable financial assistant named AlphaGain. Your purpose is to provide insightful and concise analysis to help users make informed financial decisions.
 
 When a user asks a question, follow these steps:
 1. Identify the relevant financial data needed to answer the query.
@@ -207,7 +207,7 @@ async def run_agent(messages):
             conversation_sessions[user_id].append({
                 "role": "assistant",
                 "content": full_text,
-                "username": "FinanceGPT"
+                "username": "AlphaGain"
             })
             
             # Limit the conversation history to prevent it from growing too large
@@ -248,7 +248,7 @@ def convert_messages(messages_dict):
         elif role == "assistant":
             message = AIMessage(content=content)
             message.user_id = "ai"
-            message.username = "FinanceGPT"
+            message.username = "AlphaGain"
             result.append(message)
         elif role == "system":
             result.append(SystemMessage(content=content))
