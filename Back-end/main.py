@@ -29,16 +29,12 @@ app = FastAPI(
 # Check for required API keys
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 POLYGON_API_KEY = os.getenv("POLYGON_API_KEY")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 if not GEMINI_API_KEY:
     logger.warning("GEMINI_API_KEY not set. Gemini features will not function correctly.")
 
 if not POLYGON_API_KEY:
     logger.warning("POLYGON_API_KEY not set. Financial data tools will not work properly.")
-
-if not OPENAI_API_KEY:
-    logger.warning("OPENAI_API_KEY not set. Agno features will not function correctly.")
 
 # Configure CORS
 allowed_origins = os.getenv("ALLOWED_ORIGINS", "*").split(",")
@@ -56,15 +52,13 @@ app.include_router(websocket.router, prefix="/api")
 
 @app.get("/")
 async def root():
-    status = "warning" if not GEMINI_API_KEY or not POLYGON_API_KEY or not OPENAI_API_KEY else "ok"
+    status = "warning" if not GEMINI_API_KEY or not POLYGON_API_KEY else "ok"
     
     message = "FinanceGPT API is running"
     if not GEMINI_API_KEY:
         message += " (WARNING: GEMINI_API_KEY not set)"
     if not POLYGON_API_KEY:
         message += " (WARNING: POLYGON_API_KEY not set)"
-    if not OPENAI_API_KEY:
-        message += " (WARNING: OPENAI_API_KEY not set)"
     
     return JSONResponse(
         content={"status": status, "message": message}

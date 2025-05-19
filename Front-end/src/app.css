@@ -4,8 +4,27 @@
   line-height: 1.5;
   font-weight: 400;
 
-  color: #333;
-  background-color: #f9f9f9;
+  color: #e5e7eb;
+  background-color: #121212;
+
+  /* Color scheme variables */
+  --primary-color: #10b981; /* Emerald green */
+  --primary-hover: #059669; /* Darker emerald for hover */
+  --primary-light: #065f46; /* Dark emerald for backgrounds */
+  --secondary-color: #064e3b; /* Deeper emerald for secondary elements */
+  --accent-color: #0ea5e9; /* Blue accent for contrast */
+  --accent-light: #075985; /* Dark blue background */
+  --text-dark: #1f2937; /* Dark text */
+  --text-light: #f9fafb; /* Light text */
+  --gray-100: #1f2937; /* Darkest gray (almost black) */
+  --gray-200: #374151; /* Very dark gray */
+  --gray-300: #4b5563; /* Dark gray */
+  --gray-400: #6b7280; /* Medium gray */
+  --gray-500: #9ca3af; /* Light gray */
+  --gray-600: #d1d5db; /* Very light gray */
+  --black: #030712; /* Almost black */
+  --card-bg: #111827; /* Dark background for cards */
+  --hover-bg: #1f2937; /* Slightly lighter for hover states */
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -22,6 +41,8 @@ body {
   padding: 0;
   min-width: 320px;
   min-height: 100vh;
+  color: var(--gray-600);
+  background-color: var(--black);
 }
 
 button {
@@ -34,14 +55,34 @@ button {
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: var(--gray-200);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #888;
+  background: var(--gray-400);
   border-radius: 3px;
-  }
+}
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #555;
+  background: var(--gray-500);
+}
+
+/* Utility classes */
+.card {
+  background-color: var(--card-bg);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  border: 1px solid var(--gray-200);
+}
+
+.card-header {
+  background-color: var(--primary-color);
+  color: var(--text-light);
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+}
+
+.card-body {
+  padding: 1rem;
 }

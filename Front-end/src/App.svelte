@@ -5,6 +5,8 @@
   import GroupChatInput from './lib/components/GroupChatInput.svelte';
   import UsersPanel from './lib/components/UsersPanel.svelte';
   import Login from './lib/components/Login.svelte';
+  import NewsWidget from './lib/components/artifacts/NewsWidget.svelte';
+  import StockChart from './lib/components/artifacts/StockChart.svelte';
   import './app.css';
   import 'highlight.js/styles/github.css';
   
@@ -203,10 +205,10 @@
     />
   {:else}
     <div class="chat-container">
-      <Header />
+      <Header username={username} />
       
-      <div class="chat-content">
-        <div class="message-panel">
+      <div class="main-content">
+        <div class="chat-panel">
           <div class="message-list">
             {#each messages as message (message.timestamp + (message.user_id || ''))}
               {#if message.type === 'system'}
@@ -221,7 +223,7 @@
                 />
               {/if}
             {/each}
-  </div>
+          </div>
           
           <GroupChatInput 
             onSendMessage={handleSendMessage}
@@ -229,12 +231,22 @@
             bind:aiToggle={aiToggle}
             on:typing={handleTyping}
           />
-  </div>
+        </div>
 
-        <UsersPanel 
-          users={activeUsers}
-          currentUserId={userId}
-        />
+        <div class="artifacts-panel">
+          <div class="artifact-item">
+            <StockChart />
+          </div>
+          <div class="artifact-item">
+            <NewsWidget />
+          </div>
+          <div class="artifact-item">
+            <UsersPanel 
+              users={activeUsers}
+              currentUserId={userId}
+            />
+          </div>
+        </div>
       </div>
     </div>
   {/if}
@@ -245,7 +257,7 @@
     height: 100vh;
     display: flex;
     flex-direction: column;
-    background-color: #f5f7fa;
+    background-color: var(--gray-100);
   }
   
   .chat-container {
@@ -259,17 +271,18 @@
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
   }
   
-  .chat-content {
+  .main-content {
     flex: 1;
     display: flex;
     overflow: hidden;
   }
   
-  .message-panel {
+  .chat-panel {
     flex: 1;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    border-right: 1px solid var(--gray-200);
   }
   
   .message-list {
@@ -281,28 +294,54 @@
     gap: 0.5rem;
   }
   
+  .artifacts-panel {
+    width: 35%;
+    min-width: 350px;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+    overflow-y: auto;
+  }
+  
+  .artifact-item {
+    flex: 1;
+    min-height: 300px;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  
   .system-message {
     padding: 0.5rem 1rem;
-    background-color: #f5f5f5;
+    background-color: var(--gray-100);
     border-radius: 4px;
     font-size: 0.85rem;
-    color: #666;
+    color: var(--gray-600);
     text-align: center;
     margin: 0.5rem 0;
     max-width: 80%;
     align-self: center;
   }
   
-  @media (max-width: 768px) {
-    .chat-content {
+  @media (max-width: 1024px) {
+    .main-content {
       flex-direction: column;
     }
     
-    .users-panel {
+    .artifacts-panel {
       width: 100%;
-      height: 200px;
-      border-left: none;
-      border-top: 1px solid #eee;
+      min-width: 0;
+      max-height: 40%;
+    }
+    
+    .chat-panel {
+      border-right: none;
+      border-bottom: 1px solid var(--gray-200);
+    }
+    
+    .artifact-item {
+      min-height: 200px;
     }
   }
 </style>

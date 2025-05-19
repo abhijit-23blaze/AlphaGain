@@ -7,7 +7,7 @@ from typing import List, Dict, Any, Optional
 from polygon import RESTClient
 from agno.agent import Agent
 from agno.tools import tool
-from agno.models.openai import OpenAI
+from agno.models.google.gemini import Gemini
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -15,13 +15,13 @@ logger = logging.getLogger("agno_finance_agent")
 
 # Load API keys from environment
 POLYGON_API_KEY = os.getenv("POLYGON_API_KEY")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 if not POLYGON_API_KEY:
     logger.warning("POLYGON_API_KEY not set. Financial data tools will not work properly.")
 
-if not OPENAI_API_KEY:
-    logger.warning("OPENAI_API_KEY not set. Using default model which might not work properly.")
+if not GEMINI_API_KEY:
+    logger.warning("GEMINI_API_KEY not set. The Agno Gemini agent will not function correctly.")
 
 # Message conversion helpers for compatibility
 class Message:
@@ -47,103 +47,98 @@ class ToolMessage(Message):
         super().__init__(content)
         self.tool_call_id = tool_call_id
 
-# Custom Polygon Tools for Stock Data and News
-class PolygonStockTool(tool.Tool):
-    name = "PolygonStockTool"
-    description = "Fetches real-time stock price and summary data from Polygon.io"
-    
-    def __init__(self, api_key):
-        self.client = RESTClient(api_key)
-    
-    def run(self, ticker: str):
-        """Fetches the latest stock price information for a given ticker symbol.
-        
-        Args:
-            ticker: The stock ticker symbol (e.g., 'AAPL', 'MSFT', 'GOOGL')
-            
-        Returns:
-            A formatted string containing stock information
-        """
-        try:
-            # Get the last trade for the ticker symbol
-            last_trade = self.client.get_last_trade(ticker)
-            price = last_trade.price
-            timestamp = last_trade.timestamp
-            
-            # Get company details
-            try:
-                company = self.client.get_ticker_details(ticker)
-                name = company.name
-                market_cap = company.market_cap
-            except:
-                name = ticker.upper()
-                market_cap = "Not available"
-            
-            # Get day's change
-            try:
-                previous_close = self.client.get_previous_close(ticker)
-                prev_close_price = previous_close.results[0].c
-                day_change = price - prev_close_price
-                day_change_percent = (day_change / prev_close_price) * 100
-            except:
-                day_change = "N/A"
-                day_change_percent = "N/A"
-            
-            response = {
-                "ticker": ticker.upper(),
-                "name": name,
-                "price": price,
-                "change": day_change if isinstance(day_change, str) else round(day_change, 2),
-                "change_percent": day_change_percent if isinstance(day_change_percent, str) else round(day_change_percent, 2),
-                "market_cap": market_cap,
-                "timestamp": timestamp
-            }
-            
-            return json.dumps(response)
-        except Exception as e:
-            logger.error(f"Error fetching stock data for {ticker}: {str(e)}")
-            return json.dumps({"error": f"Failed to fetch stock data for {ticker}: {str(e)}"})
+# Initialize Polygon API client
+polygon_client = RESTClient(POLYGON_API_KEY)
 
-class PolygonNewsTool(tool.Tool):
-    name = "PolygonNewsTool"
-    description = "Fetches the latest news articles for a given stock ticker from Polygon.io"
+# Define Polygon API tools using the @tool decorator
+@tool(name="PolygonStockTool", 
+      description="Fetches real-time stock price and summary data from Polygon.io")
+def get_stock_data(ticker: str):
+    """Fetches the latest stock price information for a given ticker symbol.
     
-    def __init__(self, api_key):
-        self.client = RESTClient(api_key)
-    
-    def run(self, ticker: str, limit: int = 5):
-        """Fetches the latest news articles for a given ticker symbol.
+    Args:
+        ticker: The stock ticker symbol (e.g., 'AAPL', 'MSFT', 'GOOGL')
         
-        Args:
-            ticker: The stock ticker symbol (e.g., 'AAPL', 'MSFT', 'GOOGL')
-            limit: Maximum number of news articles to return (default: 5)
-            
-        Returns:
-            JSON string containing news articles
-        """
+    Returns:
+        A formatted string containing stock information
+    """
+    try:
+        # Get the last trade for the ticker symbol
+        last_trade = polygon_client.get_last_trade(ticker)
+        price = last_trade.price
+        timestamp = last_trade.timestamp
+        
+        # Get company details
         try:
-            # Get news for the ticker
-            news = self.client.get_ticker_news(ticker.upper(), limit=limit)
-            
-            articles = []
-            for article in news:
-                articles.append({
-                    "title": article.title,
-                    "author": article.author,
-                    "published_utc": article.published_utc,
-                    "article_url": article.article_url,
-                    "tickers": article.tickers,
-                    "description": article.description
-                })
-            
-            return json.dumps({"articles": articles})
-        except Exception as e:
-            logger.error(f"Error fetching news for {ticker}: {str(e)}")
-            return json.dumps({"error": f"Failed to fetch news for {ticker}: {str(e)}"})
+            company = polygon_client.get_ticker_details(ticker)
+            name = company.name
+            market_cap = company.market_cap
+        except:
+            name = ticker.upper()
+            market_cap = "Not available"
+        
+        # Get day's change
+        try:
+            previous_close = polygon_client.get_previous_close(ticker)
+            prev_close_price = previous_close.results[0].c
+            day_change = price - prev_close_price
+            day_change_percent = (day_change / prev_close_price) * 100
+        except:
+            day_change = "N/A"
+            day_change_percent = "N/A"
+        
+        response = {
+            "ticker": ticker.upper(),
+            "name": name,
+            "price": price,
+            "change": day_change if isinstance(day_change, str) else round(day_change, 2),
+            "change_percent": day_change_percent if isinstance(day_change_percent, str) else round(day_change_percent, 2),
+            "market_cap": market_cap,
+            "timestamp": timestamp
+        }
+        
+        return json.dumps(response)
+    except Exception as e:
+        logger.error(f"Error fetching stock data for {ticker}: {str(e)}")
+        return json.dumps({"error": f"Failed to fetch stock data for {ticker}: {str(e)}"})
 
-# Initialize Polygon tools
-polygon_stock_tool = PolygonStockTool(POLYGON_API_KEY)
-polygon_news_tool = PolygonNewsTool(POLYGON_API_KEY)
+@tool(name="PolygonNewsTool", 
+      description="Fetches the latest news articles for a given stock ticker from Polygon.io")
+def get_stock_news(ticker: str, limit: int = 5):
+    """Fetches the latest news articles for a given ticker symbol.
+    
+    Args:
+        ticker: The stock ticker symbol (e.g., 'AAPL', 'MSFT', 'GOOGL')
+        limit: Maximum number of news articles to return (default: 5)
+        
+    Returns:
+        JSON string containing news articles
+    """
+    try:
+        # Get news for the ticker using the correct method
+        news_url = f"https://api.polygon.io/v2/reference/news?ticker={ticker}&limit={limit}&apiKey={POLYGON_API_KEY}"
+        import httpx
+        
+        with httpx.Client() as client:
+            response = client.get(news_url)
+            response.raise_for_status()
+            news_data = response.json()
+        
+        articles = []
+        for article in news_data.get("results", []):
+            articles.append({
+                "title": article.get("title", ""),
+                "author": article.get("author", ""),
+                "published_utc": article.get("published_utc", ""),
+                "article_url": article.get("article_url", ""),
+                "tickers": article.get("tickers", []),
+                "description": article.get("description", "")
+            })
+        
+        return json.dumps({"articles": articles})
+    except Exception as e:
+        logger.error(f"Error fetching news for {ticker}: {str(e)}")
+        return json.dumps({"error": f"Failed to fetch news for {ticker}: {str(e)}"})
 
 # Define system prompt for the finance agent
 system_prompt = f"""
@@ -160,14 +155,14 @@ When a user asks a finance-related question, follow these steps:
 Always maintain a helpful, professional tone and focus on giving accurate information.
 """
 
-# Create the Agno agent
-llm = OpenAI(api_key=OPENAI_API_KEY)
+# Create the Agno agent with Gemini model
+gemini_model = Gemini(api_key=GEMINI_API_KEY)
 
 finance_agent = Agent(
     name="Finance Chatbot",
     role="Provide financial insights using real-time market data",
-    model=llm,
-    tools=[polygon_stock_tool, polygon_news_tool],
+    model=gemini_model,
+    tools=[get_stock_data, get_stock_news],
     instructions=[
         system_prompt,
         "Use the PolygonStockTool to fetch real-time stock data when asked about stock prices.",
@@ -230,10 +225,16 @@ async def run_agent(messages):
             
             response = finance_agent.run(query)
             
+            # Extract the content from the response object
+            if hasattr(response, 'content'):
+                response_text = response.content
+            else:
+                response_text = str(response)
+            
             # Add the assistant's response to the conversation history
             conversation_sessions[user_id].append({
                 "role": "assistant",
-                "content": response,
+                "content": response_text,
                 "username": "FinanceGPT"
             })
             
@@ -245,7 +246,7 @@ async def run_agent(messages):
             logger.info(f"User {user_id}: Updated conversation history, now has {len(conversation_sessions[user_id])} messages")
             
             # Yield character by character for a token-by-token feel
-            for char in response:
+            for char in response_text:
                 yield {"output": char}
                 
         except Exception as e:

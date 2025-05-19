@@ -1,8 +1,53 @@
-# Svelte + TS + Vite
+# FinGen Application
 
-This template should help get you started developing with Svelte and TypeScript in Vite.
+A Svelte-based financial application with AI integration, built on the Svelte + TS + Vite template.
 
-## Recommended IDE Setup
+## Features
+
+### New UI Design
+- Split layout with chat interface on the left and financial artifacts on the right
+- Updated emerald green color scheme for a fresh, professional look
+- Responsive design that adapts to different screen sizes
+
+### Main Components
+1. **Chat Interface**
+   - Real-time messaging with AI assistant
+   - Support for code snippets and financial data visualization
+
+2. **Financial Artifacts**
+   - **Stock Chart**: Interactive price charts with time range selection
+   - **News Widget**: Financial news feed with global and ticker-specific options
+   - **Active Users**: Shows users currently connected to the platform
+
+### User Experience
+- Username display with greeting in the header
+- Modern card-based UI elements
+- Smooth transitions and loading states
+
+## Development
+
+This application uses Svelte with TypeScript for the frontend. The backend integrates with financial data providers and AI services.
+
+### Getting Started
+
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+```
+
+### Project Structure
+- `src/App.svelte`: Main application component with layout
+- `src/lib/components/`: UI components
+- `src/lib/components/artifacts/`: Financial widgets (StockChart, NewsWidget)
+
+## Technical Information
+
+This project was created with the Svelte + TS + Vite template. Below is additional information about the template:
+
+### Recommended IDE Setup
 
 [VS Code](https://code.visualstudio.com/) + [Svelte](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode).
 

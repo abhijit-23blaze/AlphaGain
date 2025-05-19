@@ -1,14 +1,13 @@
 # FinanceGPT Backend
 
-A FastAPI backend with WebSocket support for a financial analysis AI assistant powered by Google Gemini, OpenAI, Agno, and Polygon API.
+A FastAPI backend with WebSocket support for a financial analysis AI assistant powered by Google Gemini, Agno, and Polygon API.
 
 ## Setup
 
 ### Prerequisites
 
 - Python 3.9+
-- [Gemini API Key](https://ai.google.dev/tutorials/setup) (for Gemini mode)
-- [OpenAI API Key](https://platform.openai.com/api-keys) (for Agno mode)
+- [Gemini API Key](https://ai.google.dev/tutorials/setup)
 - [Polygon.io API Key](https://polygon.io/) (for financial data)
 
 ### Installation
@@ -26,7 +25,6 @@ pip install -r requirements.txt
 # API Keys
 GEMINI_API_KEY=your_gemini_api_key_here
 POLYGON_API_KEY=your_polygon_api_key_here
-OPENAI_API_KEY=your_openai_api_key_here
 
 # Server Settings
 PORT=8000
@@ -174,7 +172,7 @@ The backend includes two different agent implementations:
 
 1. **Gemini Agent (Original)**: Uses Google's Gemini model with LangChain for financial analysis.
 
-2. **Agno Agent (New)**: Uses the Agno framework with OpenAI models and custom Polygon.io tools for:
+2. **Agno Agent (New)**: Uses the Agno framework with Gemini models and custom Polygon.io tools for:
    - Real-time stock price data
    - Latest company news
    
