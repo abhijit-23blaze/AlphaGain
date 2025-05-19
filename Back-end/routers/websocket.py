@@ -118,6 +118,8 @@ async def websocket_chat(websocket: WebSocket, user_id: str):
                             {
                                 "role": "user",
                                 "content": content,
+                                "user_id": user_id,
+                                "username": username
                             }
                         ])
                         

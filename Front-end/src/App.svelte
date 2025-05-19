@@ -221,7 +221,7 @@
                 />
               {/if}
             {/each}
-          </div>
+  </div>
           
           <GroupChatInput 
             onSendMessage={handleSendMessage}
@@ -229,8 +229,8 @@
             bind:aiToggle={aiToggle}
             on:typing={handleTyping}
           />
-        </div>
-        
+  </div>
+
         <UsersPanel 
           users={activeUsers}
           currentUserId={userId}

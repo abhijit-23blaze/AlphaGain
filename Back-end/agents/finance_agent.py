@@ -50,7 +50,7 @@ if not api_key:
 # Configure the Google Genai API
 genai.configure(api_key=api_key)
 
-# Maintains a session memory of conversations - keyed by client IP address
+# Maintains a session memory of conversations - keyed by user_id
 conversation_sessions = {}
 
 # Define helpers for polygon.io API calls
@@ -151,38 +151,32 @@ async def run_agent(messages):
     """
     Run the agent with Google Generative AI with streaming and conversation memory.
     """
-    # Create a unique session key based on the first message to identify the conversation
-    # This is a simple approach - in production you might use user authentication
-    session_key = str(hash(str(messages[0]))) if messages else "default"
+    # Get the user_id from the first message
+    user_id = getattr(messages[0], 'user_id', 'default') if messages else 'default'
     
-    # Initialize or get conversation history for this session
-    if session_key not in conversation_sessions:
-        conversation_sessions[session_key] = []
+    # Initialize or get conversation history for this user
+    if user_id not in conversation_sessions:
+        conversation_sessions[user_id] = []
     
-    # Extract all previous messages for context
-    all_messages = []
-    for msg in messages:
-        # Extract role and content, with proper fallbacks
-        if hasattr(msg, 'role'):
-            role = msg.role
-        else:
-            role = "user" if isinstance(msg, HumanMessage) else "assistant"
-        
-        content = msg.content if hasattr(msg, 'content') else str(msg)
-        
-        all_messages.append({"role": role, "content": content})
+    # Extract the current message
+    current_message = messages[-1] if messages else None
+    if not current_message:
+        return
     
-    # Update conversation history with all messages from this session
-    # We'll replace the entire history to ensure it's in sync
-    conversation_sessions[session_key] = all_messages
+    # Create message object for current message
+    current_msg_obj = {
+        "role": getattr(current_message, 'role', 'user'),
+        "content": getattr(current_message, 'content', ''),
+        "username": getattr(current_message, 'username', 'User')
+    }
     
-    # Extract the last message as the current query
-    last_message = all_messages[-1]["content"] if all_messages else ""
+    # Add current message to conversation history
+    conversation_sessions[user_id].append(current_msg_obj)
     
     # Format the conversation for the model
     formatted_conversation = ""
-    for msg in conversation_sessions[session_key][:-1]:  # All messages except the last one
-        role_label = "User" if msg["role"] == "user" else "Assistant"
+    for msg in conversation_sessions[user_id][:-1]:  # All messages except the last one
+        role_label = msg["username"] if msg["role"] == "user" else "Assistant"
         formatted_conversation += f"{role_label}: {msg['content']}\n\n"
     
     # Create the prompt with the conversation history and current question
@@ -191,9 +185,9 @@ async def run_agent(messages):
     if formatted_conversation:
         full_prompt += f"Previous conversation:\n{formatted_conversation}\n"
     
-    full_prompt += f"User: {last_message}\nAssistant:"
+    full_prompt += f"User: {current_msg_obj['content']}\nAssistant:"
     
-    logger.info(f"Session {session_key}: Processing message with conversation history of {len(conversation_sessions[session_key])} messages")
+    logger.info(f"User {user_id}: Processing message with conversation history of {len(conversation_sessions[user_id])} messages")
     
     # Function to yield chunks token by token
     async def generate_response():
@@ -210,17 +204,18 @@ async def run_agent(messages):
             full_text = response.text
             
             # Add the assistant's response to the conversation history
-            conversation_sessions[session_key].append({
+            conversation_sessions[user_id].append({
                 "role": "assistant",
-                "content": full_text
+                "content": full_text,
+                "username": "FinanceGPT"
             })
             
             # Limit the conversation history to prevent it from growing too large
-            if len(conversation_sessions[session_key]) > 20:  # Keep last 10 exchanges (20 messages)
-                conversation_sessions[session_key] = conversation_sessions[session_key][-20:]
+            if len(conversation_sessions[user_id]) > 20:  # Keep last 10 exchanges (20 messages)
+                conversation_sessions[user_id] = conversation_sessions[user_id][-20:]
             
             # Log the conversation size after update
-            logger.info(f"Session {session_key}: Updated conversation history, now has {len(conversation_sessions[session_key])} messages")
+            logger.info(f"User {user_id}: Updated conversation history, now has {len(conversation_sessions[user_id])} messages")
             
             # Yield character by character for a token-by-token feel
             for char in full_text:
@@ -242,11 +237,19 @@ def convert_messages(messages_dict):
     for msg in messages_dict:
         role = msg.get("role", "")
         content = msg.get("content", "")
+        user_id = msg.get("user_id", "")
+        username = msg.get("username", "User")
         
         if role == "user":
-            result.append(HumanMessage(content=content))
+            message = HumanMessage(content=content)
+            message.user_id = user_id
+            message.username = username
+            result.append(message)
         elif role == "assistant":
-            result.append(AIMessage(content=content))
+            message = AIMessage(content=content)
+            message.user_id = "ai"
+            message.username = "FinanceGPT"
+            result.append(message)
         elif role == "system":
             result.append(SystemMessage(content=content))
         elif role == "tool":
