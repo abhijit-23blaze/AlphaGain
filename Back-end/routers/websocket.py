@@ -5,7 +5,7 @@ import logging
 import uuid
 
 # Import the finance agent
-from agents.finance_agent import run_agent, convert_messages
+from agents.agno_finance_agent import run_agent, convert_messages
 
 router = APIRouter(tags=["WebSocket"])
 

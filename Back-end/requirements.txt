@@ -6,4 +6,7 @@ langchain>=0.0.312
 websockets==12.0
 pydantic>=2.4.2
 python-multipart==0.0.6
-httpx==0.25.0 
+httpx==0.25.0
+polygon-api-client>=1.14.5
+agno>=1.5.0
+openai>=1.12.0 
