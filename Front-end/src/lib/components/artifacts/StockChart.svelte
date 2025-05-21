@@ -1,8 +1,39 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
+  import { createEventDispatcher } from 'svelte';
   
   export let symbol = "SPY"; // Default to S&P 500 ETF
-  export let timeRange = "1M"; // Options: 1D, 1W, 1M, 3M, 1Y, 5Y
+  export let timeRange = "1W"; // Fixed to 1-week duration
+  
+  const dispatch = createEventDispatcher();
+  
+  // Strict list of valid tech firm and popular stock tickers
+  const validTickers = [
+    'AAPL',  // Apple
+    'MSFT',  // Microsoft
+    'GOOGL', // Google (Class A)
+    'GOOG',  // Google (Class C)
+    'AMZN',  // Amazon
+    'META',  // Meta Platforms (Facebook)
+    'TSLA',  // Tesla
+    'NVDA',  // NVIDIA
+    'AMD',   // Advanced Micro Devices
+    'INTC',  // Intel
+    'IBM',   // IBM
+    'CSCO',  // Cisco
+    'ORCL',  // Oracle
+    'ADBE',  // Adobe
+    'CRM',   // Salesforce
+    'NFLX',  // Netflix
+    'PYPL',  // PayPal
+    'QCOM',  // Qualcomm
+    'TXN',   // Texas Instruments
+    'SPY',   // S&P 500 ETF
+    'QQQ',   // Nasdaq 100 ETF
+    'DIA',   // Dow Jones ETF
+    'VTI',   // Vanguard Total Stock Market ETF
+    'VOO'    // Vanguard S&P 500 ETF
+  ];
   
   interface ChartPoint {
     date: string | number;
@@ -18,19 +49,72 @@
   let error: string | null = null;
   let isLightMode = false; // Track light/dark mode
   let websocket: WebSocket | null = null;
+  let lastSearchTime = 0; // Track last search time for rate limiting
+  let searchCooldown = 15000; // 15 seconds cooldown between searches
   
-  // Time range selector entries with proper format
-  const timeRanges = [
-    { id: "1D", label: "1D" },
-    { id: "1W", label: "1W" },
-    { id: "1M", label: "1M" },
-    { id: "3M", label: "3M" },
-    { id: "1Y", label: "1Y" },
-    { id: "5Y", label: "5Y" }
-  ];
+  // Create default data in case the API fails
+  const createDefaultData = (): ChartPoint[] => {
+    const result: ChartPoint[] = [];
+    const now = new Date();
+    
+    // Create 7 days of data (1 week)
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(now);
+      date.setDate(date.getDate() - i);
+      
+      // Skip weekends for more realistic data
+      if (date.getDay() === 0 || date.getDay() === 6) {
+        continue; // Skip Saturday and Sunday
+      }
+      
+      // Base price around $100 with some variance
+      const basePrice = 100 + (i * 2);
+      const open = basePrice - (Math.random() * 2);
+      const close = basePrice + (Math.random() * 2);
+      const high = Math.max(open, close) + (Math.random() * 1);
+      const low = Math.min(open, close) - (Math.random() * 1);
+      
+      result.push({
+        date: date.getTime(),
+        open: parseFloat(open.toFixed(2)),
+        high: parseFloat(high.toFixed(2)),
+        low: parseFloat(low.toFixed(2)),
+        close: parseFloat(close.toFixed(2)),
+        volume: Math.floor(Math.random() * 1000000)
+      });
+    }
+    
+    return result;
+  };
   
   // Function to request chart data from the backend
-  const requestChartData = (ticker: string, timeframe: string) => {
+  const requestChartData = (ticker: string) => {
+    // Always use 1W timeframe
+    const timeframe = "1W";
+    
+    // Validate ticker symbol against our list
+    ticker = ticker.toUpperCase().trim();
+    if (!validTickers.includes(ticker)) {
+      error = `Invalid ticker symbol: ${ticker}. Please use one of the popular tickers listed below.`;
+      return;
+    }
+    
+    // Check if we need to wait due to client-side rate limiting
+    const now = Date.now();
+    const timeSinceLastSearch = now - lastSearchTime;
+    
+    if (timeSinceLastSearch < searchCooldown) {
+      const remainingCooldown = Math.ceil((searchCooldown - timeSinceLastSearch) / 1000);
+      error = `Please wait ${remainingCooldown} seconds before searching again`;
+      return;
+    }
+    
+    // Update last search time
+    lastSearchTime = now;
+    
+    // Clear previous error
+    error = null;
+    
     if (!websocket || websocket.readyState !== WebSocket.OPEN) {
       // If socket not open, try to use mock data
       setMockData(ticker, timeframe);
@@ -38,7 +122,6 @@
     }
     
     isLoading = true;
-    error = null;
     
     try {
       // Send chart request via websocket
@@ -61,27 +144,101 @@
   const handleWebSocketMessage = (event: MessageEvent) => {
     try {
       const data = JSON.parse(event.data);
+      console.log("WebSocket message received:", data.type);
       
       if (data.type === 'chart_data') {
         const chartResult = data.data;
+        console.log("Chart data received:", chartResult);
+        
+        // Check if this update was requested by the AI
+        const wasAiRequested = data.ai_requested === true;
+        if (wasAiRequested) {
+          console.log("Chart update was requested by the AI");
+        }
         
         if (chartResult.error) {
-          error = chartResult.error;
+          // Check if it's a rate limiting error
+          if (chartResult.error.includes("Rate limit exceeded") || 
+              chartResult.error.includes("429")) {
+            error = "API rate limit exceeded. Using simulated data for demonstration purposes.";
+            // Continue with mock data if provided
+            if (chartResult.data && chartResult.data.length > 0) {
+              if (chartResult.ticker) {
+                symbol = chartResult.ticker;
+              }
+              
+              chartData = chartResult.data;
+              console.log("Using provided mock data with", chartData?.length || 0, "points");
+              renderChart();
+              isLoading = false;
+            } else {
+              // Create default data if none provided
+              setMockData(chartResult.ticker || symbol, "1W");
+            }
+          } else {
+            // For other errors, just show the error message
+            error = chartResult.error;
+            isLoading = false;
+            // Try to fall back to mock data for the ticker
+            if (chartResult.ticker) {
+              setMockData(chartResult.ticker, "1W");
+            }
+          }
+        } else {
+          // Clear any previous errors
+          error = null;
+          
+          if (chartResult.ticker) {
+            symbol = chartResult.ticker;
+          }
+          
+          // If chart data is available, update the chart
+          if (chartResult.data && Array.isArray(chartResult.data)) {
+            chartData = chartResult.data.map((item: any) => ({
+              date: item.date,
+              open: item.open,
+              high: item.high,
+              low: item.low,
+              close: item.close,
+              volume: item.volume
+            }));
+            
+            console.log("Processed chart data with", chartData?.length || 0, "points");
+            
+            // Ensure we have a properly sized canvas
+            setTimeout(() => {
+              const canvas = document.getElementById('stock-chart') as HTMLCanvasElement;
+              if (canvas) {
+                const container = canvas.parentElement;
+                if (container) {
+                  const containerWidth = container.clientWidth;
+                  const containerHeight = Math.max(container.clientHeight - 40, 200);
+                  
+                  // Adjust for margins
+                  canvas.width = containerWidth - 60; // Adjust for left and right margins
+                  canvas.height = containerHeight - 30; // Adjust for top and bottom margins
+                  
+                  console.log(`Canvas resized to ${canvas.width}x${canvas.height}`);
+                  
+                  // Once data is loaded, render the chart
+                  renderChart();
+                }
+              }
+            }, 100);
+          } else {
+            error = "No chart data available";
+            // Create default data for the requested ticker
+            setMockData(chartResult.ticker || symbol, "1W");
+          }
+          
           isLoading = false;
-          return;
         }
-        
-        if (chartResult.ticker) {
-          symbol = chartResult.ticker;
-        }
-        
-        if (chartResult.timeframe) {
-          timeRange = chartResult.timeframe;
-        }
-        
-        chartData = chartResult.data || [];
-        renderChart();
-        isLoading = false;
+      }
+      
+      // Also handle direct ticker update requests from the AI
+      if (data.type === 'update_chart' && data.ticker) {
+        console.log("Received direct chart update request for ticker:", data.ticker);
+        updateStockData(data.ticker);
       }
     } catch (err) {
       console.error('Error processing websocket message:', err);
@@ -91,7 +248,8 @@
   // Generate mock data as a fallback
   const setMockData = (ticker: string, timeframe: string) => {
     symbol = ticker;
-    timeRange = timeframe;
+    // Always use 1W timeframe
+    timeRange = "1W";
     
     const now = new Date();
     const mockData: ChartPoint[] = [];
@@ -167,14 +325,25 @@
   };
   
   const renderChart = () => {
-    if (!chartData || !chartData.length) return;
+    if (!chartData || !chartData.length) {
+      console.error("Cannot render chart: No chart data available");
+      return;
+    }
     
     // Get chart dimensions
     const canvas = document.getElementById('stock-chart') as HTMLCanvasElement;
-    if (!canvas) return;
+    if (!canvas) {
+      console.error("Cannot render chart: Canvas element not found");
+      return;
+    }
     
     const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    if (!ctx) {
+      console.error("Cannot render chart: Canvas context not available");
+      return;
+    }
+    
+    console.log("Rendering chart with data:", chartData.length, "points");
     
     const width = canvas.width;
     const height = canvas.height;
@@ -210,7 +379,52 @@
       ctx.moveTo(0, y);
       ctx.lineTo(width, y);
     }
+    
+    // Draw vertical grid lines (for date intervals)
+    const numVerticalLines = Math.min(chartData.length, 6); // Limit to avoid crowding
+    for (let i = 0; i <= numVerticalLines; i++) {
+      const x = (i / numVerticalLines) * width;
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, height);
+    }
     ctx.stroke();
+    
+    // Draw price labels on y-axis
+    ctx.fillStyle = isLightMode ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.6)';
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'left';
+    
+    for (let i = 0; i <= 5; i++) {
+      const value = minValue + (valueRange * (i / 5));
+      const y = height - ((value - minValue) / valueRange * height);
+      ctx.fillText('$' + value.toFixed(2), 5, y - 2);
+    }
+    
+    // Draw date labels on x-axis
+    ctx.textAlign = 'center';
+    
+    for (let i = 0; i <= numVerticalLines; i++) {
+      const index = Math.floor((i / numVerticalLines) * (chartData.length - 1));
+      const point = chartData[index];
+      const x = (i / numVerticalLines) * width;
+      
+      // Format the date for display
+      let dateLabel = '';
+      if (typeof point.date === 'number') {
+        const date = new Date(point.date);
+        if (timeRange === '1D') {
+          dateLabel = date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        } else if (timeRange === '1W' || timeRange === '1M') {
+          dateLabel = date.toLocaleDateString([], {month: 'short', day: 'numeric'});
+        } else {
+          dateLabel = date.toLocaleDateString([], {month: 'short', year: '2-digit'});
+        }
+      } else {
+        dateLabel = String(point.date).substring(0, 10);
+      }
+      
+      ctx.fillText(dateLabel, x, height - 5);
+    }
     
     // Function to scale Y values
     const scaleY = (value: number) => {
@@ -263,22 +477,43 @@
     ctx.fill();
   };
   
-  const handleTimeRangeChange = (range: string) => {
-    timeRange = range;
-    requestChartData(symbol, timeRange);
-  };
-  
-  export function updateStockData(newSymbol: string, newTimeRange: string = timeRange) {
+  // Updated to be more robust
+  export function updateStockData(newSymbol: string) {
     // Normalize ticker symbol
     newSymbol = newSymbol.toUpperCase().trim();
     
-    // Ensure timeRange is one of the allowed values
-    const validTimeframe = timeRanges.find(t => t.id === newTimeRange);
-    const timeframe = validTimeframe ? validTimeframe.id : "1M";
+    console.log(`StockChart.updateStockData called with: ${newSymbol}`);
     
-    // Request new chart data
-    if (newSymbol) {
-      requestChartData(newSymbol, timeframe);
+    // Validate against our list of valid tickers
+    if (!validTickers.includes(newSymbol)) {
+      console.error(`Invalid ticker symbol: ${newSymbol}. Not in validated list.`);
+      error = `Invalid ticker symbol: ${newSymbol}. Please use one of the popular tickers.`;
+      return;
+    }
+    
+    // If the symbol is the same but we already have an error, try again
+    if (newSymbol === symbol && error) {
+      console.log(`Retrying fetch for ${newSymbol} due to previous error`);
+    }
+    
+    // Update the symbol state variable
+    symbol = newSymbol;
+    
+    // Request new chart data with fixed 1W timeframe
+    requestChartData(newSymbol);
+  }
+  
+  // Ensure chart is rendered - called externally when tab is switched
+  export function ensureChartRendered() {
+    console.log("ensureChartRendered called");
+    if (chartData && chartData.length > 0) {
+      // Need to wait a moment for the DOM to update after tab switch
+      setTimeout(() => {
+        renderChart();
+      }, 50);
+    } else if (!isLoading) {
+      // If we don't have data and aren't loading, request data
+      requestChartData(symbol);
     }
   }
   
@@ -295,6 +530,9 @@
     // Check initial theme
     checkTheme();
     
+    // Initialize with default data first to ensure something is displayed
+    chartData = createDefaultData();
+    
     // Get or create websocket connection
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.hostname === 'localhost' 
@@ -308,7 +546,7 @@
       // If no websocket exists or it's not open, create a new one
       if (!websocket || websocket.readyState !== WebSocket.OPEN) {
         // Use mock data instead
-        setMockData(symbol, timeRange);
+        setMockData(symbol, "1W");
       } else {
         // Add our handler to the existing websocket
         const originalOnMessage = websocket.onmessage;
@@ -327,12 +565,12 @@
         }
         
         // Request initial chart data
-        requestChartData(symbol, timeRange);
+        requestChartData(symbol);
       }
     } catch (err) {
       console.error('Error setting up websocket for chart:', err);
       // Fall back to mock data
-      setMockData(symbol, timeRange);
+      setMockData(symbol, "1W");
     }
     
     // Set up theme change detection
@@ -355,10 +593,16 @@
       if (canvas) {
         const container = canvas.parentElement;
         if (container) {
-          canvas.width = container.clientWidth;
-          canvas.height = Math.max(container.clientHeight - 40, 200);
+          const containerWidth = container.clientWidth;
+          const containerHeight = Math.max(container.clientHeight - 40, 200);
           
-          if (chartData) {
+          // Adjust for margins
+          canvas.width = containerWidth - 60; // Adjust for left and right margins
+          canvas.height = containerHeight - 30; // Adjust for top and bottom margins
+          
+          console.log(`Canvas resized to ${canvas.width}x${canvas.height}`);
+          
+          if (chartData && chartData.length > 0) {
             renderChart();
           }
         }
@@ -366,7 +610,10 @@
     };
     
     window.addEventListener('resize', resizeCanvas);
-    setTimeout(resizeCanvas, 0); // Initial sizing after DOM update
+    setTimeout(resizeCanvas, 100); // Initial sizing after DOM update
+    
+    // Dispatch the ready event
+    dispatch('chartReady');
     
     return () => {
       window.removeEventListener('resize', resizeCanvas);
@@ -377,6 +624,27 @@
 
 <div class="stock-chart-widget">
   <div class="chart-header">
+    <div class="search-form">
+      <form on:submit|preventDefault={() => requestChartData(symbol)}>
+        <input 
+          type="text" 
+          bind:value={symbol} 
+          placeholder="Enter ticker symbol (e.g., AAPL)" 
+          class="ticker-input" 
+        />
+        <button type="submit" class="search-button">
+          Search
+        </button>
+      </form>
+      <div class="search-hint">
+        Tech tickers: AAPL, MSFT, GOOGL, AMZN, META, TSLA, NVDA, AMD, INTC, IBM
+        <div class="search-hint-secondary">
+          Also: CSCO, ORCL, ADBE, CRM, NFLX, PYPL, QCOM, TXN, SPY, QQQ
+        </div>
+        <div class="cooldown-hint">Limited to 1 search per 15 seconds (free API tier)</div>
+      </div>
+    </div>
+    
     <div class="symbol-info">
       <h3>{symbol}</h3>
       {#if chartData && chartData.length > 0}
@@ -396,17 +664,6 @@
         </div>
       {/if}
     </div>
-    
-    <div class="time-range-selector">
-      {#each timeRanges as range}
-        <button 
-          class="tab-button {timeRange === range.id ? 'active' : ''}"
-          on:click={() => handleTimeRangeChange(range.id)}
-        >
-          {range.label}
-        </button>
-      {/each}
-    </div>
   </div>
   
   <div class="chart-container">
@@ -416,11 +673,25 @@
         <p>Loading chart data...</p>
       </div>
     {:else if error}
-      <div class="error-state">
-        <p>Error loading chart: {error}</p>
+      <div class="error-state {error.includes('API rate limit') || error.includes('simulated data') ? 'warning' : ''}">
+        <p>{error}</p>
+        {#if error.includes('API rate limit') || error.includes('simulated data')}
+          <p class="small-note">Free API tier has limited requests. Chart shows simulated data.</p>
+          {#if chartData && chartData.length > 0}
+            <canvas id="stock-chart"></canvas>
+          {/if}
+        {/if}
+      </div>
+    {:else if chartData && chartData.length > 0}
+      <canvas id="stock-chart"></canvas>
+      <div class="chart-info">
+        <p class="chart-time">1-Week Chart</p>
+        <p class="data-points">{chartData.length} data points</p>
       </div>
     {:else}
-      <canvas id="stock-chart"></canvas>
+      <div class="no-data">
+        <p>No chart data available. Search for a stock symbol above.</p>
+      </div>
     {/if}
   </div>
 </div>
@@ -439,6 +710,41 @@
     gap: 0.5rem;
     padding: 0.75rem;
     border-bottom: 1px solid var(--border-color);
+  }
+  
+  .search-form {
+    margin-bottom: 0.5rem;
+  }
+  
+  .search-form form {
+    display: flex;
+    gap: 0.5rem;
+  }
+  
+  .ticker-input {
+    flex: 1;
+    padding: 0.5rem;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    background-color: var(--primary-dark);
+    color: var(--text-light);
+    font-size: 0.9rem;
+  }
+  
+  .search-button {
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    background-color: var(--primary-light);
+    color: var(--text-dark);
+    font-size: 0.9rem;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+  
+  .search-button:hover {
+    background-color: var(--accent-light);
   }
   
   .symbol-info {
@@ -476,11 +782,6 @@
     color: var(--text-light);
   }
   
-  .time-range-selector {
-    display: flex;
-    gap: 0.25rem;
-  }
-  
   .chart-container {
     flex-grow: 1;
     position: relative;
@@ -492,6 +793,12 @@
     display: block;
     width: 100%;
     height: 100%;
+    margin-top: 10px; /* Add margin for price labels at top */
+    margin-bottom: 20px; /* Add margin for date labels at bottom */
+    margin-left: 50px; /* Add margin for price labels at left */
+    margin-right: 10px; /* Add margin at right */
+    max-width: calc(100% - 60px); /* Adjust for the margins */
+    max-height: calc(100% - 30px); /* Adjust for the margins */
   }
   
   .loading-state, .error-state {
@@ -523,5 +830,66 @@
   @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+  }
+  
+  .search-hint {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+    text-align: center;
+  }
+  
+  .search-hint-secondary {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-top: 0.1rem;
+    font-style: italic;
+  }
+  
+  .cooldown-hint {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-top: 0.1rem;
+    font-style: italic;
+  }
+  
+  .error-state.warning {
+    background-color: rgba(255, 152, 0, 0.1);
+    color: var(--text-light);
+    border-left: 3px solid var(--warning-color);
+  }
+  
+  .small-note {
+    font-size: 0.75rem;
+    margin-top: 0.5rem;
+    opacity: 0.8;
+  }
+  
+  .chart-info {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-align: center;
+    margin-top: 0.5rem;
+  }
+  
+  .chart-time {
+    font-weight: 500;
+    margin-bottom: 0.2rem;
+  }
+  
+  .data-points {
+    font-size: 0.7rem;
+    opacity: 0.8;
+  }
+  
+  .no-data {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-muted);
+    font-style: italic;
+    text-align: center;
+    padding: 2rem;
   }
 </style> 

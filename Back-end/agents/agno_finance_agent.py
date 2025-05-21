@@ -252,6 +252,7 @@ When a user asks a finance-related question, follow these steps:
 2. Use your tools to retrieve necessary data like stock prices or news
 3. Analyze the data and extract key insights
 4. Provide a concise, helpful response
+5. Always mention the name of the main company that we are talking about in terms of its stock market name.
 
 Always maintain a helpful, professional tone and focus on giving accurate information.
 """

@@ -24,6 +24,8 @@
   --hover-bg: #2a2a2a;
   --active-bg: #1a5d38;
 
+  --warning-color: #FF9800;
+
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;

@@ -22,10 +22,16 @@
   let aiToggle = true;
   
   // Artifact state
-  let currentTab = 'chart'; // 'chart', 'news', 'users'
+  let currentTab = 'chat'; // 'chart', 'news', 'users'
+  
+  // Reference to the StockChart component
+  let stockChartComponent: any = null;
   
   // Track active tool calls
-  let activeToolCalls: { tool_name: string, status: string, ticker: string }[] = [];
+  let activeToolCalls: any[] = [];
+  
+  // Chart related states
+  let chartReady = false;
   
   // Function to get friendly tool name for display
   function getFriendlyToolName(toolName: string): string {
@@ -73,6 +79,11 @@
   // Change artifact tab
   function setTab(tab: string) {
     currentTab = tab;
+    
+    // If switching to chart tab and we have a stockChartComponent, make sure it's rendered
+    if (tab === 'chart' && stockChartComponent && chartReady) {
+      stockChartComponent.ensureChartRendered();
+    }
   }
   
   // Establish WebSocket connection
@@ -134,13 +145,71 @@
           break;
           
         case 'ai_stream':
-          // Handle AI token streaming
-          const lastMessage = messages[messages.length - 1];
+          // Find the AI message that's currently streaming
+          const existingStreamMsg = messages.find(msg => msg.user_id === 'ai' && msg.type === 'ai_stream');
           
-          if (lastMessage && lastMessage.user_id === 'ai' && lastMessage.type === 'ai_stream') {
-            // Append to the existing streaming message
-            lastMessage.content += data.content;
-            messages = [...messages.slice(0, -1), lastMessage];
+          if (existingStreamMsg) {
+            // Update the existing message content
+            existingStreamMsg.content += data.content;
+            // Force a UI update
+            messages = [...messages];
+            
+            // Improved ticker detection: look for common stock ticker patterns in the AI's response
+            const fullContent = existingStreamMsg.content;
+            
+            // Strict list of valid tech firm and popular stock tickers to avoid partial matches
+            const validTickers = [
+              'AAPL',  // Apple
+              'MSFT',  // Microsoft
+              'GOOGL', // Google (Class A)
+              'GOOG',  // Google (Class C)
+              'AMZN',  // Amazon
+              'META',  // Meta Platforms (Facebook)
+              'TSLA',  // Tesla
+              'NVDA',  // NVIDIA
+              'AMD',   // Advanced Micro Devices
+              'INTC',  // Intel
+              'IBM',   // IBM
+              'CSCO',  // Cisco
+              'ORCL',  // Oracle
+              'ADBE',  // Adobe
+              'CRM',   // Salesforce
+              'NFLX',  // Netflix
+              'PYPL',  // PayPal
+              'QCOM',  // Qualcomm
+              'TXN',   // Texas Instruments
+              'SPY',   // S&P 500 ETF
+              'QQQ',   // Nasdaq 100 ETF
+              'DIA',   // Dow Jones ETF
+              'VTI',   // Vanguard Total Stock Market ETF
+              'VOO'    // Vanguard S&P 500 ETF
+            ];
+            
+            // More comprehensive regex pattern to detect stock tickers
+            const tickerRegex = /\b([A-Z]{1,5})(?:\s+(?:stock|ticker|shares|price|\$)|\s+is\s+(?:trading|priced|currently|at|\$)|\)|\,|\.|$)/g;
+            let allMatches = [];
+            let match;
+            
+            while ((match = tickerRegex.exec(fullContent)) !== null) {
+              // Only collect tickers that are in our valid list
+              if (validTickers.includes(match[1])) {
+                allMatches.push(match[1]);
+              }
+            }
+            
+            // If we found any valid tickers, update the chart
+            if (allMatches.length > 0 && stockChartComponent) {
+              const tickerToUse = allMatches[0]; // Use the first valid ticker found
+              console.log(`AI mentioned valid ticker: ${tickerToUse}, updating chart`);
+              // Switch to chart tab
+              currentTab = 'chart';
+              // Update the chart with the detected ticker
+              setTimeout(() => {
+                if (stockChartComponent) {
+                  stockChartComponent.updateStockData(tickerToUse);
+                }
+              }, 100);
+            }
           } else {
             // Create a new streaming message only if one doesn't exist yet
             messages = [...messages, {
@@ -164,6 +233,22 @@
             streamedMessage.type = 'chat';
             // Force a UI update
             messages = [...messages];
+          }
+          break;
+          
+        case 'chart_data':
+          // Handle chart data
+          // The StockChart component will pick this up since it's using the same websocket
+          // Check if the chart component is displayed
+          if (currentTab === 'chart' && stockChartComponent) {
+            const chartResult = data.data;
+            // Update the chart using the component's method
+            if (chartResult && chartResult.ticker) {
+              // Switch to chart tab if not already there
+              currentTab = 'chart';
+              // Update the chart with the received data
+              stockChartComponent.updateStockData(chartResult.ticker);
+            }
           }
           break;
           
@@ -237,6 +322,36 @@
     // Make sure to update the local state too
     aiToggle = aiToggleState;
     
+    // Strict list of valid tech firm and popular stock tickers (same as what we use for AI detection)
+    const validTickers = [
+      'AAPL',  'MSFT',  'GOOGL', 'GOOG',  'AMZN',  'META',  'TSLA',  'NVDA',  'AMD',   'INTC',
+      'IBM',   'CSCO',  'ORCL',  'ADBE',  'CRM',   'NFLX',  'PYPL',  'QCOM',  'TXN',   'SPY',
+      'QQQ',   'DIA',   'VTI',   'VOO'
+    ];
+    
+    // Check if the message includes a stock chart command
+    const stockChartMatch = content.match(/(?:show|display|get)\s+chart\s+for\s+([A-Z]+)/i);
+    if (stockChartMatch && stockChartMatch[1] && stockChartComponent) {
+      const ticker = stockChartMatch[1].toUpperCase();
+      
+      // Validate ticker against our list
+      if (validTickers.includes(ticker)) {
+        // Switch to the chart tab
+        currentTab = 'chart';
+        // Update the stock chart
+        setTimeout(() => {
+          stockChartComponent.updateStockData(ticker);
+        }, 100);
+      } else {
+        // Invalid ticker - add a message to inform the user
+        messages = [...messages, {
+          type: 'system',
+          content: `Invalid ticker symbol: ${ticker}. Valid tickers are: AAPL, MSFT, GOOGL, AMZN, META, TSLA, NVDA, AMD, etc.`,
+          timestamp: new Date().toISOString()
+        }];
+      }
+    }
+    
     sendWebSocketMessage({
       type: 'chat',
       content,
@@ -257,6 +372,12 @@
     // Add the AI system user
     activeUsers = [...activeUsers, { user_id: 'ai', username: 'AlphaGain' }];
   });
+
+  // Callback for when the StockChart component is ready
+  function handleChartReady() {
+    chartReady = true;
+    console.log("Chart component is ready");
+  }
 </script>
 
 <main>
@@ -322,25 +443,25 @@
               class="tab-button {currentTab === 'chart' ? 'active' : ''}" 
               on:click={() => setTab('chart')}
             >
-              📈 Charts
+              Charts
             </button>
             <button 
               class="tab-button {currentTab === 'news' ? 'active' : ''}" 
               on:click={() => setTab('news')}
             >
-              📰 News
+              News
             </button>
             <button 
               class="tab-button {currentTab === 'users' ? 'active' : ''}" 
               on:click={() => setTab('users')}
             >
-              👥 Users
+              Users
             </button>
           </div>
           
           <div class="artifact-container card">
             {#if currentTab === 'chart'}
-              <StockChart />
+              <StockChart bind:this={stockChartComponent} on:chartReady={handleChartReady} />
             {:else if currentTab === 'news'}
               <NewsWidget />
             {:else if currentTab === 'users'}
